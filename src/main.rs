@@ -22,8 +22,10 @@ pub enum Expr {
 
 #[derive(Debug)]
 pub enum Op {
-    Add,
-    Subtract
+    Addition,
+    Subtract,
+    Division,
+    Multiplication
 }
 
 lazy_static::lazy_static! {
@@ -33,7 +35,8 @@ lazy_static::lazy_static! {
 
         // the `op` call order determines operation precedences
         PrattParser::new()
-            .op(Op::infix(add, Left) | Op::infix(subtract, Left))
+            .op(Op::infix(addition, Left) | Op::infix(subtraction, Left))
+            .op(Op::infix(division, Left) | Op::infix(multiplication, Left))
     };
 }
 
@@ -45,8 +48,10 @@ pub fn parse_expression(pairs: Pairs<Rule>) -> Expr {
         })
         .map_infix(|lhs, op, rhs| {
             let op = match op.as_rule() {
-                Rule::add => Op::Add,
-                Rule::subtract => Op::Subtract,
+                Rule::addition => Op::Addition,
+                Rule::subtraction => Op::Subtract,
+                Rule::multiplication => Op::Multiplication,
+                Rule::division => Op::Division,
                 rule => unreachable!("Expected an infix operation, got '{:?}'", rule)
             };
             Expr::BinOp { lhs: Box::new(lhs), op, rhs: Box::new(rhs) }

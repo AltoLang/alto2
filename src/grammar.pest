@@ -1,9 +1,11 @@
 WHITESPACE = _{ " " | "\t" }
 number_token = @{ ASCII_DIGIT+ }
 
-operation = _{ add | subtract }
-    add = { "+" }
-    subtract = { "-" }
+operation = _{ addition | subtraction | multiplication | division }
+    addition = { "+" }
+    subtraction = { "-" }
+    multiplication = { "*" }
+    division = { "/" }
 
 atom = _{ number_token }
 expression = { atom ~ (operation ~ atom)* }
