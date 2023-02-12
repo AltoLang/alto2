@@ -1,0 +1,9 @@
+WHITESPACE = _{ " " | "\t" }
+number_token = @{ ASCII_DIGIT+ }
+
+operation = _{ add | subtract }
+    add = { "+" }
+    subtract = { "-" }
+
+atom = _{ number_token }
+expression = { atom ~ (operation ~ atom)* }
