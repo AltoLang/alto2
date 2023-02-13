@@ -48,6 +48,7 @@ pub fn parse_expression(pairs: Pairs<Rule>) -> Expr {
             Rule::number_token => { Expr::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
             Rule::string_token => { println!("{}", primary.as_str() ); Expr::StringToken(primary.as_str()) },
             Rule::identifier_token => { println!("{}", primary.as_str() ); Expr::IdentifierToken(primary.as_str()) }
+            Rule::expression => { parse_expression(primary.into_inner()) }
             rule => unreachable!("Expr::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {
@@ -58,6 +59,7 @@ pub fn parse_expression(pairs: Pairs<Rule>) -> Expr {
                 Rule::division => Op::Division,
                 rule => unreachable!("Expected an infix operation, got '{:?}'", rule)
             };
+
             Expr::BinOp { lhs: Box::new(lhs), op, rhs: Box::new(rhs) }
         })
         .parse(pairs)

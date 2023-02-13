@@ -11,5 +11,9 @@ operation = _{ addition | subtraction | multiplication | division }
 string_token = { "\"" ~ letters ~ "\"" | "'" ~ letters ~ "'" }
 identifier_token = { letters }
 
-atom = _{ number_token | string_token | identifier_token }
+keyword = _{ var_keyword | if_keyword }
+    var_keyword = { "var" }
+    if_keyword = { "if" }
+
+atom = _{ number_token | string_token | identifier_token | keyword | "(" ~ expression ~ ")" }
 expression = { atom ~ (operation ~ atom)* }
