@@ -1,5 +1,6 @@
 WHITESPACE = _{ " " | "\t" }
 number_token = @{ ASCII_DIGIT+ }
+letters = _{ ASCII_ALPHA+ }
 
 operation = _{ addition | subtraction | multiplication | division }
     addition = { "+" }
@@ -7,5 +8,8 @@ operation = _{ addition | subtraction | multiplication | division }
     multiplication = { "*" }
     division = { "/" }
 
-atom = _{ number_token }
+string_token = { "\"" ~ letters ~ "\"" | "'" ~ letters ~ "'" }
+identifier_token = { letters }
+
+atom = _{ number_token | string_token | identifier_token }
 expression = { atom ~ (operation ~ atom)* }

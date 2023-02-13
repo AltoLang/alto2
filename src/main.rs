@@ -11,12 +11,14 @@ use pest::{Parser, pratt_parser::PrattParser, iterators::Pairs};
 pub struct AltoParser;
 
 #[derive(Debug)]
-pub enum Expr {
+pub enum Expr <'a> {
     NumberToken(i32),
+    StringToken(&'a str),
+    IdentifierToken(&'a str),
     BinOp {
-        lhs: Box<Expr>,
+        lhs: Box<Expr<'a>>,
         op: Op,
-        rhs: Box<Expr>
+        rhs: Box<Expr<'a>>
     }
 }
 
@@ -43,7 +45,9 @@ lazy_static::lazy_static! {
 pub fn parse_expression(pairs: Pairs<Rule>) -> Expr {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
-            Rule::number_token => { println!("prim: {:?}", primary.as_str()); Expr::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
+            Rule::number_token => { Expr::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
+            Rule::string_token => { println!("{}", primary.as_str() ); Expr::StringToken(primary.as_str()) },
+            Rule::identifier_token => { println!("{}", primary.as_str() ); Expr::IdentifierToken(primary.as_str()) }
             rule => unreachable!("Expr::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {
