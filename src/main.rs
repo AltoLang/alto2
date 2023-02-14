@@ -15,10 +15,15 @@ pub enum Token <'a> {
     NumberToken(i32),
     StringToken(&'a str),
     IdentifierToken(&'a str),
-    BinOp {
+    KeywordToken(Keyword),
+    BinExpression {
         lhs: Box<Token<'a>>,
         op: Op,
         rhs: Box<Token<'a>>
+    },
+    DeclarationStatement {
+        identifier: Box<Token<'a>>,
+        expression: Box<Token<'a>>
     }
 }
 
@@ -48,13 +53,32 @@ lazy_static::lazy_static! {
     };
 }
 
+fn parse_declaration_statement(stmt: pest::iterators::Pair<Rule>) -> Token {
+    let mut subtokens: Pairs<Rule> = stmt.into_inner();
+
+    let identifier = match subtokens.nth(1) {
+        Some(t) => { Token::IdentifierToken(t.as_str()) },
+        None => unreachable!("Cannot find identifier when parsing declaration statement")
+    };
+
+    let expression = match subtokens.nth(1) {
+        Some(t) => { parse_expression( t.into_inner() ) },
+        None => unreachable!("Cannot find expression when parsing declaration statement")
+    };
+    
+    return Token::DeclarationStatement { identifier: Box::new(identifier), expression: Box::new(expression) }
+}
+
 fn parse_expression(pairs: Pairs<Rule>) -> Token {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
             Rule::number_token => { Token::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
-            Rule::string_token => { println!("{}", primary.as_str() ); Token::StringToken(primary.as_str()) },
-            Rule::identifier_token => { println!("{}", primary.as_str() ); Token::IdentifierToken(primary.as_str()) }
+            Rule::string_token => { Token::StringToken(primary.as_str()) },
+            Rule::identifier_token => { Token::IdentifierToken(primary.as_str()) }
             Rule::expression => { parse_expression(primary.into_inner()) }
+            Rule::expression_statement => { parse_expression(primary.into_inner()) }
+            Rule::var_keyword => { Token::KeywordToken(Keyword::VarKeyword) }
+            Rule::declaration_statement => { parse_declaration_statement(primary) }
             rule => unreachable!("Token::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {
@@ -66,7 +90,7 @@ fn parse_expression(pairs: Pairs<Rule>) -> Token {
                 rule => unreachable!("Expected an infix operation, got '{:?}'", rule)
             };
 
-            Token::BinOp { lhs: Box::new(lhs), op, rhs: Box::new(rhs) }
+            Token::BinExpression { lhs: Box::new(lhs), op, rhs: Box::new(rhs) }
         })
         .parse(pairs)
 }
@@ -74,7 +98,7 @@ fn parse_expression(pairs: Pairs<Rule>) -> Token {
 fn main() {
     for line in io::stdin().lines() {
         let ln = line.unwrap();
-        match AltoParser::parse(Rule::expression, &ln) {
+        match AltoParser::parse(Rule::statement, &ln) {
             Ok(mut pairs) => {
                 println!(
                     "Parsed: {:#?}",

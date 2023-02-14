@@ -2,6 +2,12 @@ WHITESPACE = _{ " " | "\t" }
 number_token = @{ ASCII_DIGIT+ }
 letters = _{ ASCII_ALPHA+ }
 
+assign_op = { "->" }
+
+statement = { expression_statement | declaration_statement }
+    expression_statement = { expression }
+    declaration_statement = { var_keyword ~ identifier_token ~ assign_op ~ expression }
+
 operation = _{ addition | subtraction | multiplication | division }
     addition = { "+" }
     subtraction = { "-" }
@@ -15,12 +21,5 @@ keyword = _{ var_keyword | if_keyword }
 string_token = { "\"" ~ letters ~ "\"" | "'" ~ letters ~ "'" }
 identifier_token = { !keyword ~ letters }
 
-atom = _{ number_token | keyword | string_token | identifier_token | "(" ~ expression ~ ")" }
+atom = _{ number_token | string_token | identifier_token | "(" ~ expression ~ ")" }
 expression = { atom ~ (operation ~ atom)* }
-
-assign_op = { "->" }
-declaration = { var_keyword ~ identifier_token ~ assign_op ~ expression }
-
-statement = _{ expression_statement | declaration_statement }
-    expression_statement = { expression }
-    declaration_statement = { declaration }
