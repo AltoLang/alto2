@@ -8,12 +8,19 @@ operation = _{ addition | subtraction | multiplication | division }
     multiplication = { "*" }
     division = { "/" }
 
-string_token = { "\"" ~ letters ~ "\"" | "'" ~ letters ~ "'" }
-identifier_token = { letters }
-
 keyword = _{ var_keyword | if_keyword }
     var_keyword = { "var" }
     if_keyword = { "if" }
 
-atom = _{ number_token | string_token | identifier_token | keyword | "(" ~ expression ~ ")" }
+string_token = { "\"" ~ letters ~ "\"" | "'" ~ letters ~ "'" }
+identifier_token = { !keyword ~ letters }
+
+atom = _{ number_token | keyword | string_token | identifier_token | "(" ~ expression ~ ")" }
 expression = { atom ~ (operation ~ atom)* }
+
+assign_op = { "->" }
+declaration = { var_keyword ~ identifier_token ~ assign_op ~ expression }
+
+statement = _{ expression_statement | declaration_statement }
+    expression_statement = { expression }
+    declaration_statement = { declaration }

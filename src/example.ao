@@ -1,0 +1,51 @@
+# a simple dice roller game
+
+import runtime::io
+import runtime::randoms
+
+var dice_rolls -> { }
+
+var settings -> {
+    dice_max -> 6,
+    dice_min -> 1,
+    rolls_count -> 3,
+    treshold -> 9
+}
+
+# sum numbers in a set
+sum(set) => {
+    var res -> 0
+    for (var val in set) {
+        res -> res + val 
+    }
+
+    return res
+}
+
+main() => {
+    io.log('Ready to roll?')
+    await io.input()
+
+    for (var i in { 0,.. 3 }) {
+        var value -> randoms.generate(settings.dice_min, settings.dice_max + 1)
+        dice_rolls -> dice_rolls union {value}
+    }
+
+    # show off set iteration again
+    for (var v in dice_rolls) {
+        io.log($"You've rolled a [v]")
+    }
+
+    var s -> sum(dice_rolls)
+    io.log($"Your sum was: [s]")
+
+    # get highest roll
+    # where keyword can also be substituted by |
+    var highest : int64 -> dice_rolls where (x) => {
+        if (x > highest) {
+            highest -> x
+        }
+    }
+
+    io.log($"Your highest roll was: [highest]");
+}

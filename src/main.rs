@@ -11,14 +11,14 @@ use pest::{Parser, pratt_parser::PrattParser, iterators::Pairs};
 pub struct AltoParser;
 
 #[derive(Debug)]
-pub enum Expr <'a> {
+pub enum Token <'a> {
     NumberToken(i32),
     StringToken(&'a str),
     IdentifierToken(&'a str),
     BinOp {
-        lhs: Box<Expr<'a>>,
+        lhs: Box<Token<'a>>,
         op: Op,
-        rhs: Box<Expr<'a>>
+        rhs: Box<Token<'a>>
     }
 }
 
@@ -28,6 +28,12 @@ pub enum Op {
     Subtract,
     Division,
     Multiplication
+}
+
+#[derive(Debug)]
+pub enum Keyword {
+    VarKeyword,
+    IfKeyword
 }
 
 lazy_static::lazy_static! {
@@ -42,14 +48,14 @@ lazy_static::lazy_static! {
     };
 }
 
-pub fn parse_expression(pairs: Pairs<Rule>) -> Expr {
+fn parse_expression(pairs: Pairs<Rule>) -> Token {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
-            Rule::number_token => { Expr::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
-            Rule::string_token => { println!("{}", primary.as_str() ); Expr::StringToken(primary.as_str()) },
-            Rule::identifier_token => { println!("{}", primary.as_str() ); Expr::IdentifierToken(primary.as_str()) }
+            Rule::number_token => { Token::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
+            Rule::string_token => { println!("{}", primary.as_str() ); Token::StringToken(primary.as_str()) },
+            Rule::identifier_token => { println!("{}", primary.as_str() ); Token::IdentifierToken(primary.as_str()) }
             Rule::expression => { parse_expression(primary.into_inner()) }
-            rule => unreachable!("Expr::parse expects an atom, found {:?}", rule)
+            rule => unreachable!("Token::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {
             let op = match op.as_rule() {
@@ -60,7 +66,7 @@ pub fn parse_expression(pairs: Pairs<Rule>) -> Expr {
                 rule => unreachable!("Expected an infix operation, got '{:?}'", rule)
             };
 
-            Expr::BinOp { lhs: Box::new(lhs), op, rhs: Box::new(rhs) }
+            Token::BinOp { lhs: Box::new(lhs), op, rhs: Box::new(rhs) }
         })
         .parse(pairs)
 }
