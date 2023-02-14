@@ -1,5 +1,5 @@
 WHITESPACE = _{ " " | "\t" }
-number_token = @{ ASCII_DIGIT+ }
+number_token = @{ ("+" | "-")? ~ ASCII_DIGIT+ }
 letters = _{ ASCII_ALPHA+ }
 
 assign_op = { "->" }
