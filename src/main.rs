@@ -21,6 +21,10 @@ pub enum Token <'a> {
         op: Op,
         rhs: Box<Token<'a>>
     },
+    AssignmentExpression {
+        identifier: Box<Token<'a>>,
+        expression: Box<Token<'a>>
+    },
     DeclarationStatement {
         identifier: Box<Token<'a>>,
         expression: Box<Token<'a>>
@@ -53,32 +57,49 @@ lazy_static::lazy_static! {
     };
 }
 
-fn parse_declaration_statement(stmt: pest::iterators::Pair<Rule>) -> Token {
-    let mut subtokens: Pairs<Rule> = stmt.into_inner();
+fn parse_assignment_expression(exp: pest::iterators::Pair<Rule>) -> Token {
+    let mut subtokens = exp.into_inner();
 
-    let identifier = match subtokens.nth(1) {
+    let identifier = match subtokens.nth(0) {
         Some(t) => { Token::IdentifierToken(t.as_str()) },
         None => unreachable!("Cannot find identifier when parsing declaration statement")
     };
 
     let expression = match subtokens.nth(1) {
-        Some(t) => { parse_expression( t.into_inner() ) },
+        Some(t) => { parse( t.into_inner() ) },
+        None => unreachable!("Cannot find identifier when parsing declaration statement")
+    };
+
+    return Token::AssignmentExpression { identifier: Box::new(identifier), expression: Box::new(expression) }
+}
+
+fn parse_declaration_statement(stmt: pest::iterators::Pair<Rule>) -> Token {
+    let mut subtokens = stmt.into_inner();
+
+    let identifier = match subtokens.nth(1) {
+        Some(t) => { Token::IdentifierToken(t.as_str()) },
+        None => unreachable!("Cannot find expression when parsing declaration statement")
+    };
+
+    let expression = match subtokens.nth(1) {
+        Some(t) => { parse( t.into_inner() ) },
         None => unreachable!("Cannot find expression when parsing declaration statement")
     };
     
     return Token::DeclarationStatement { identifier: Box::new(identifier), expression: Box::new(expression) }
 }
 
-fn parse_expression(pairs: Pairs<Rule>) -> Token {
+fn parse(pairs: Pairs<Rule>) -> Token {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
             Rule::number_token => { Token::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
             Rule::string_token => { Token::StringToken(primary.as_str()) },
             Rule::identifier_token => { Token::IdentifierToken(primary.as_str()) }
-            Rule::expression => { parse_expression(primary.into_inner()) }
-            Rule::expression_statement => { parse_expression(primary.into_inner()) }
+            Rule::expression => { parse(primary.into_inner()) }
+            Rule::expression_statement => { parse(primary.into_inner()) }
             Rule::var_keyword => { Token::KeywordToken(Keyword::VarKeyword) }
             Rule::declaration_statement => { parse_declaration_statement(primary) }
+            Rule::assignment_expression => { parse_assignment_expression(primary) }
             rule => unreachable!("Token::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {
@@ -102,7 +123,7 @@ fn main() {
             Ok(mut pairs) => {
                 println!(
                     "Parsed: {:#?}",
-                    parse_expression(
+                    parse(
                         pairs.next().unwrap().into_inner()
                     )
                 );
