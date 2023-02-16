@@ -3,7 +3,7 @@ extern crate pest;
 extern crate pest_derive;
 extern crate lazy_static;
 
-use std::io;
+use std::{io};
 use pest::{Parser, pratt_parser::PrattParser, iterators::Pairs};
 
 #[derive(Parser)]
@@ -25,9 +25,16 @@ pub enum Token <'a> {
         identifier: Box<Token<'a>>,
         expression: Box<Token<'a>>
     },
+    CallExpression {
+        identifier: Box<Token<'a>>,
+        arguments: Box<Token<'a>>
+    },
     DeclarationStatement {
         identifier: Box<Token<'a>>,
         expression: Box<Token<'a>>
+    },
+    FunctionArgumentsToken {
+        args: Box<Vec<Token<'a>>>
     }
 }
 
@@ -62,12 +69,12 @@ fn parse_assignment_expression(exp: pest::iterators::Pair<Rule>) -> Token {
 
     let identifier = match subtokens.nth(0) {
         Some(t) => { Token::IdentifierToken(t.as_str()) },
-        None => unreachable!("Cannot find identifier when parsing declaration statement")
+        None => unreachable!("Cannot find identifier when parsing assignment expression")
     };
 
     let expression = match subtokens.nth(1) {
-        Some(t) => { parse( t.into_inner() ) },
-        None => unreachable!("Cannot find identifier when parsing declaration statement")
+        Some(t) => { parse( Pairs::single(t) ) },
+        None => unreachable!("Cannot find identifier when parsing assignment expression")
     };
 
     return Token::AssignmentExpression { identifier: Box::new(identifier), expression: Box::new(expression) }
@@ -78,15 +85,43 @@ fn parse_declaration_statement(stmt: pest::iterators::Pair<Rule>) -> Token {
 
     let identifier = match subtokens.nth(1) {
         Some(t) => { Token::IdentifierToken(t.as_str()) },
-        None => unreachable!("Cannot find expression when parsing declaration statement")
+        None => unreachable!("Cannot find identifier when parsing declaration statement")
     };
 
     let expression = match subtokens.nth(1) {
-        Some(t) => { parse( t.into_inner() ) },
+        Some(t) => { parse( Pairs::single(t) ) },
         None => unreachable!("Cannot find expression when parsing declaration statement")
     };
     
     return Token::DeclarationStatement { identifier: Box::new(identifier), expression: Box::new(expression) }
+}
+
+fn parse_call_expression(exp: pest::iterators::Pair<Rule>) -> Token {
+    let mut subtokens = exp.into_inner();
+
+    let identifier = match subtokens.nth(0) {
+        Some(t) => { Token::IdentifierToken(t.as_str()) },
+        None => unreachable!("Cannot find identifier when parsing call expression")
+    };
+
+    let arguments = match subtokens.nth(0) {
+        Some(t) => { parse( Pairs::single(t) ) },
+        None => unreachable!("Cannot find arguments when parsing call expression")
+    };
+
+    return Token::CallExpression { identifier: Box::new(identifier), arguments: Box::new(arguments) }
+}
+
+fn parse_function_arguments(expr: pest::iterators::Pair<Rule>) -> Token {
+    let subtokens = expr.into_inner();
+
+    let mut expressions: Vec<Token> = Vec::new();
+    subtokens.for_each(|token| {
+        let parsed = parse( Pairs::single(token) );
+        expressions.push(parsed);
+    });
+
+    return Token::FunctionArgumentsToken { args: Box::new(expressions) }
 }
 
 fn parse(pairs: Pairs<Rule>) -> Token {
@@ -100,6 +135,8 @@ fn parse(pairs: Pairs<Rule>) -> Token {
             Rule::var_keyword => { Token::KeywordToken(Keyword::VarKeyword) }
             Rule::declaration_statement => { parse_declaration_statement(primary) }
             Rule::assignment_expression => { parse_assignment_expression(primary) }
+            Rule::call_expression => { parse_call_expression(primary) }
+            Rule::function_args => { parse_function_arguments(primary) }
             rule => unreachable!("Token::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {

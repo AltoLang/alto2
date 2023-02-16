@@ -17,11 +17,15 @@ keyword = _{ var_keyword | if_keyword }
 string_token = { "\"" ~ letters ~ "\"" | "'" ~ letters ~ "'" }
 identifier_token = { !keyword ~ letters }
 
-assignment_expression = { identifier_token ~ assign_operator ~ expression }
-
 statement = { expression_statement | declaration_statement }
     declaration_statement = { var_keyword ~ identifier_token ~ assign_operator ~ expression}
     expression_statement = { expression }
 
-atom = _{ assignment_expression | number_token | string_token | identifier_token | "(" ~ expression ~ ")" }
+assignment_expression = { identifier_token ~ assign_operator ~ expression }
+call_expression = { identifier_token ~ function_args }
+
+function_args = { "(" ~ (func_argument ~ ",")* ~ func_argument + ~ ")"}
+func_argument = _{ expression }
+
+atom = _{ assignment_expression | call_expression | number_token | string_token | identifier_token | "(" ~ expression ~ ")" }
 expression = { atom ~ (operation ~ atom)* }
