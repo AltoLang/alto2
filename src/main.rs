@@ -133,12 +133,10 @@ fn parse_function_arguments(expr: Pair<Rule>) -> Token {
 }
 
 fn parse_code_bloc(expr: Pair<Rule>) -> Token {
-    let mut subtokens = expr.into_inner();
-    let root = subtokens.nth(0).unwrap();
-    let root_subtokens = root.into_inner();
+    let subtokens = expr.into_inner();
 
     let mut tokens: Vec<Token> = Vec::new();
-    root_subtokens.for_each(|token| {
+    subtokens.for_each(|token| {
         let parsed = parse(Pairs::single(token));
         tokens.push(parsed);
     });
