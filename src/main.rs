@@ -100,7 +100,7 @@ fn parse_declaration_statement(stmt: Pair<Rule>) -> Token {
         Some(t) => { parse( Pairs::single(t) ) },
         None => unreachable!("Cannot find expression when parsing declaration statement")
     };
-    
+
     return Token::DeclarationStatement { identifier: Box::new(identifier), expression: Box::new(expression) }
 }
 
@@ -150,7 +150,7 @@ fn parse_parameters(expr: Pair<Rule>) -> Token {
     // for now, this is the same code as
     // parse_arguments, this will change later
     // when we add typing
-    
+
     let subtokens = expr.into_inner();
 
     let mut expressions: Vec<Token> = Vec::new();
