@@ -13,7 +13,7 @@ var settings -> {
 }
 
 # sum numbers in a set
-sum(set) => {
+func sum(set) => {
     var res -> 0
     for (var val in set) {
         res -> res + val 
@@ -22,7 +22,7 @@ sum(set) => {
     return res
 }
 
-main() => {
+func main() => {
     io.log('Ready to roll?')
     await io.input()
 

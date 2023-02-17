@@ -4,7 +4,7 @@ extern crate pest_derive;
 extern crate lazy_static;
 
 use std::{io};
-use pest::{Parser, pratt_parser::PrattParser, iterators::Pairs};
+use pest::{Parser, pratt_parser::PrattParser, iterators::{Pairs, Pair}};
 
 #[derive(Parser)]
 #[grammar = "grammar.pest"]
@@ -35,6 +35,14 @@ pub enum Token <'a> {
     },
     FunctionArgumentsToken {
         args: Box<Vec<Token<'a>>>
+    },
+    FunctionDeclarationExpression {
+        identifier: &'a str,
+        parameters: Box<Token<'a>>,
+        code_block: Box<Token<'a>>
+    },
+    CodeBlock {
+        tokens: Box<Vec<Token<'a>>>
     }
 }
 
@@ -64,7 +72,7 @@ lazy_static::lazy_static! {
     };
 }
 
-fn parse_assignment_expression(exp: pest::iterators::Pair<Rule>) -> Token {
+fn parse_assignment_expression(exp: Pair<Rule>) -> Token {
     let mut subtokens = exp.into_inner();
 
     let identifier = match subtokens.nth(0) {
@@ -80,7 +88,7 @@ fn parse_assignment_expression(exp: pest::iterators::Pair<Rule>) -> Token {
     return Token::AssignmentExpression { identifier: Box::new(identifier), expression: Box::new(expression) }
 }
 
-fn parse_declaration_statement(stmt: pest::iterators::Pair<Rule>) -> Token {
+fn parse_declaration_statement(stmt: Pair<Rule>) -> Token {
     let mut subtokens = stmt.into_inner();
 
     let identifier = match subtokens.nth(1) {
@@ -96,7 +104,7 @@ fn parse_declaration_statement(stmt: pest::iterators::Pair<Rule>) -> Token {
     return Token::DeclarationStatement { identifier: Box::new(identifier), expression: Box::new(expression) }
 }
 
-fn parse_call_expression(exp: pest::iterators::Pair<Rule>) -> Token {
+fn parse_call_expression(exp: Pair<Rule>) -> Token {
     let mut subtokens = exp.into_inner();
 
     let identifier = match subtokens.nth(0) {
@@ -112,7 +120,7 @@ fn parse_call_expression(exp: pest::iterators::Pair<Rule>) -> Token {
     return Token::CallExpression { identifier: Box::new(identifier), arguments: Box::new(arguments) }
 }
 
-fn parse_function_arguments(expr: pest::iterators::Pair<Rule>) -> Token {
+fn parse_function_arguments(expr: Pair<Rule>) -> Token {
     let subtokens = expr.into_inner();
 
     let mut expressions: Vec<Token> = Vec::new();
@@ -122,6 +130,57 @@ fn parse_function_arguments(expr: pest::iterators::Pair<Rule>) -> Token {
     });
 
     return Token::FunctionArgumentsToken { args: Box::new(expressions) }
+}
+
+fn parse_code_bloc(expr: Pair<Rule>) -> Token {
+    let mut subtokens = expr.into_inner();
+    let root = subtokens.nth(0).unwrap();
+    let root_subtokens = root.into_inner();
+
+    let mut tokens: Vec<Token> = Vec::new();
+    root_subtokens.for_each(|token| {
+        let parsed = parse(Pairs::single(token));
+        tokens.push(parsed);
+    });
+
+    return Token::CodeBlock { tokens: Box::new(tokens) }
+}
+
+fn parse_parameters(expr: Pair<Rule>) -> Token {
+    // for now, this is the same code as
+    // parse_arguments, this will change later
+    // when we add typing
+    
+    let subtokens = expr.into_inner();
+
+    let mut expressions: Vec<Token> = Vec::new();
+    subtokens.for_each(|token| {
+        let parsed = parse( Pairs::single(token) );
+        expressions.push(parsed);
+    });
+
+    return Token::FunctionArgumentsToken { args: Box::new(expressions) }
+}
+
+fn parse_function_declaration(expr: Pair<Rule>) -> Token {
+    let mut subtokens = expr.into_inner();
+
+    let identifier = match subtokens.nth(0) {
+        Some(t) => { t.as_str() }
+        None => unreachable!("Cannot find identifier token when parsing function declaration")
+    };
+
+    let parameters = match subtokens.nth(0) {
+        Some(t) => { parse( Pairs::single(t) ) }
+        None => unreachable!("Cannot find parameters when parsing function delcaration")
+    };
+
+    let code_block = match subtokens.nth(0) {
+        Some(t) => { parse( Pairs::single(t) ) }
+        None => unreachable!("Cannot find code block when parsing function delcaration")
+    };
+
+    return Token::FunctionDeclarationExpression { identifier: identifier, parameters: Box::new(parameters), code_block: Box::new(code_block) }
 }
 
 fn parse(pairs: Pairs<Rule>) -> Token {
@@ -137,6 +196,9 @@ fn parse(pairs: Pairs<Rule>) -> Token {
             Rule::assignment_expression => { parse_assignment_expression(primary) }
             Rule::call_expression => { parse_call_expression(primary) }
             Rule::function_args => { parse_function_arguments(primary) }
+            Rule::function_definition_expression => { parse_function_declaration(primary) }
+            Rule::parameter_expression => { parse_parameters(primary) }
+            Rule::code_block => { parse_code_bloc(primary) }
             rule => unreachable!("Token::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {
