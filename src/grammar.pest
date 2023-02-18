@@ -1,3 +1,6 @@
+module = _{ SOI ~ root ~ EOI }
+root = { (statement)* }
+
 WHITESPACE = _{ " " | "\t" }
 number_token = @{ ("+" | "-")? ~ ASCII_DIGIT+ }
 letters = _{ ASCII_ALPHA+ }
@@ -17,31 +20,29 @@ keyword = _{ var_keyword | if_keyword }
 string_token = { "\"" ~ letters ~ "\"" | "'" ~ letters ~ "'" }
 identifier_token = @{ !keyword ~ letters }
 
-statement = _{ expression_statement | declaration_statement }
+statement = _{ code_block | declaration_statement | expression_statement }
+    code_block = { "{" ~ (statement)* ~ "}" }
     declaration_statement = { var_keyword ~ identifier_token ~ assign_operator ~ expression}
     expression_statement = { expression }
+
+atom = _{
+    assignment_expression |
+    function_definition_expression |
+    call_expression |
+    number_token |
+    string_token |
+    identifier_token |
+    "(" ~ expression ~ ")"
+}
+
+function_definition_expression = { "func" ~ identifier_token ~ parameter_expression ~ code_block }
+parameter_expression = { "(" ~ (func_argument ~ ",")* ~ func_argument + ~ ")"}
+func_parameter = _{ identifier_token }
 
 assignment_expression = { identifier_token ~ assign_operator ~ expression }
 
 call_expression = { identifier_token ~ function_args }
 function_args = { "(" ~ (func_argument ~ ",")* ~ func_argument + ~ ")"}
 func_argument = _{ expression }
-
-code_block = { "{" ~ (statement)* ~ "}" }
-
-function_definition_expression = { "func" ~ identifier_token ~ parameter_expression ~ code_block }
-parameter_expression = { "(" ~ (func_argument ~ ",")* ~ func_argument + ~ ")"}
-func_parameter = _{ identifier_token }
-
-atom = _{
-    assignment_expression |
-    function_definition_expression |
-    call_expression |
-    code_block |
-    number_token |
-    string_token |
-    identifier_token |
-    "(" ~ expression ~ ")"
-}
 
 expression = { atom ~ (operation ~ atom)* }
