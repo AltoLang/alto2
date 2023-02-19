@@ -28,7 +28,7 @@ func main() => {
 
     for (var i in { 0,.. 3 }) {
         var value -> randoms.generate(settings.dice_min, settings.dice_max + 1)
-        dice_rolls -> dice_rolls union {value}
+        dice_rolls -> dice_rolls union { value }
     }
 
     # show off set iteration again

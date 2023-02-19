@@ -1,8 +1,11 @@
+extern crate pest;
+extern crate lazy_static;
+
 use pest::{Parser, pratt_parser::PrattParser, iterators::{Pairs, Pair}};
 
 #[derive(Parser)]
-#[grammar = "grammar.pest"]
-pub struct AltoParser;
+#[grammar = "syntax/grammar.pest"]
+struct AltoParser;
 
 #[derive(Debug)]
 pub enum Token <'a> {

@@ -1,15 +1,13 @@
-extern crate pest;
 #[macro_use]
 extern crate pest_derive;
-extern crate lazy_static;
 
 use std::{fs, env, io::{self, BufRead}};
 
-pub mod parser;
+mod syntax;
 
 fn interactive() {
     for line in io::stdin().lock().lines() {
-        parser::parse_contents(line.unwrap())
+        syntax::parser::parse_contents(line.unwrap())
     }
 }
 
@@ -21,7 +19,7 @@ fn parse_file() {
 
     // also sterilize the file of newlines
     
-    parser::parse_contents(code);
+    syntax::parser::parse_contents(code);
 }
 
 fn main() {
