@@ -1,7 +1,13 @@
-module = _{ SOI ~ root ~ EOI }
+// since the pratt parser ignores the top-most
+// token, we'll need a module rule and a root rule
+// since we need the root rule to contains a list
+// of subtokens.
+
+module = { root }
 root = { (statement)* }
 
 WHITESPACE = _{ " " | "\t" }
+NEWLINE = _{ "\n" | "\n\r" }
 number_token = @{ ("+" | "-")? ~ ASCII_DIGIT+ }
 letters = _{ ASCII_ALPHA+ }
 

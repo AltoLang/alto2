@@ -16,8 +16,11 @@ fn interactive() {
 fn parse_file() {
     let path = "./src/main.ao";
     let code = fs::read_to_string(path)
-        .expect("Cannot read file.");
+        .expect("Cannot read file.")
+        .replace('\n', "");
 
+    // also sterilize the file of newlines
+    
     parser::parse_contents(code);
 }
 

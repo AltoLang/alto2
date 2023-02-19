@@ -37,6 +37,9 @@ pub enum Token <'a> {
     },
     CodeBlock {
         tokens: Box<Vec<Token<'a>>>
+    },
+    RootStatement {
+        tokens: Box<Vec<Token<'a>>>
     }
 }
 
@@ -175,6 +178,18 @@ fn parse_function_declaration(expr: Pair<Rule>) -> Token {
     return Token::FunctionDeclarationExpression { identifier: identifier, parameters: Box::new(parameters), code_block: Box::new(code_block) }
 }
 
+fn parse_root_statement(stmt: Pair<Rule>) -> Token {
+    let subtokens = stmt.into_inner();
+
+    let mut tokens: Vec<Token> = Vec::new();
+    subtokens.for_each(|token| {
+        let parsed = parse(Pairs::single(token));
+        tokens.push(parsed);
+    });
+
+    return Token::RootStatement { tokens: Box::new(tokens) }
+}
+
 fn parse(pairs: Pairs<Rule>) -> Token {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
@@ -191,6 +206,7 @@ fn parse(pairs: Pairs<Rule>) -> Token {
             Rule::function_definition_expression => { parse_function_declaration(primary) }
             Rule::parameter_expression => { parse_parameters(primary) }
             Rule::code_block => { parse_code_bloc(primary) }
+            Rule::root => { parse_root_statement(primary) }
             rule => unreachable!("Token::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {
