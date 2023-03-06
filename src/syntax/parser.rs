@@ -57,7 +57,6 @@ pub enum Op {
 #[derive(Debug)]
 pub enum Keyword {
     VarKeyword,
-    IfKeyword
 }
 
 lazy_static::lazy_static! {
