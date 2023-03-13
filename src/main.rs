@@ -20,7 +20,8 @@ fn parse_file() {
         .replace('\n', ""); // sterilize file of newlines
     
     let root = syntax::parser::parse_contents(code).unwrap();
-    let _bound = binding::binder::bind(root);
+    let bound = binding::binder::bind(root);
+    dbg!(bound);
 }
 
 fn main() {
