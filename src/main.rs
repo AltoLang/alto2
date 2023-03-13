@@ -4,10 +4,12 @@ extern crate pest_derive;
 use std::{fs, env, io::{self, BufRead}};
 
 mod syntax;
+mod binding;
 
 fn interactive() {
     for line in io::stdin().lock().lines() {
-        syntax::parser::parse_contents(line.unwrap())
+        let root = syntax::parser::parse_contents(line.unwrap());
+        println!("parsed: {:?}", root);
     }
 }
 
@@ -15,11 +17,10 @@ fn parse_file() {
     let path = "./src/main.ao";
     let code = fs::read_to_string(path)
         .expect("Cannot read file.")
-        .replace('\n', "");
-
-    // also sterilize the file of newlines
+        .replace('\n', ""); // sterilize file of newlines
     
-    syntax::parser::parse_contents(code);
+    let root = syntax::parser::parse_contents(code).unwrap();
+    let _bound = binding::binder::bind(root);
 }
 
 fn main() {

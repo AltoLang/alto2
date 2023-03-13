@@ -40,7 +40,7 @@ func main() => {
     io.log($"Your sum was: [s]")
 
     # get highest roll
-    # where keyword can also be substituted by |
+    # where keyword can also be substituted by | ... pipe token
     var highest : int64 -> dice_rolls where (x) => {
         if (x > highest) {
             highest -> x

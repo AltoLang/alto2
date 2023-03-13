@@ -8,41 +8,46 @@ use pest::{Parser, pratt_parser::PrattParser, iterators::{Pairs, Pair}};
 struct AltoParser;
 
 #[derive(Debug)]
-pub enum Token <'a> {
+pub enum ParseError {
+    Failed
+}
+
+#[derive(Debug)]
+pub enum SyntaxToken {
     NumberToken(i32),
-    StringToken(&'a str),
-    IdentifierToken(&'a str),
+    StringToken(String),
+    IdentifierToken(String),
     KeywordToken(Keyword),
     BinExpression {
-        lhs: Box<Token<'a>>,
+        lhs: Box<SyntaxToken>,
         op: Op,
-        rhs: Box<Token<'a>>
+        rhs: Box<SyntaxToken>
     },
     AssignmentExpression {
-        identifier: Box<Token<'a>>,
-        expression: Box<Token<'a>>
+        identifier: Box<SyntaxToken>,
+        expression: Box<SyntaxToken>
     },
     CallExpression {
-        identifier: Box<Token<'a>>,
-        arguments: Box<Token<'a>>
+        identifier: Box<SyntaxToken>,
+        arguments: Box<SyntaxToken>
     },
     DeclarationStatement {
-        identifier: Box<Token<'a>>,
-        expression: Box<Token<'a>>
+        identifier: Box<SyntaxToken>,
+        expression: Box<SyntaxToken>
     },
     FunctionArgumentsToken {
-        args: Box<Vec<Token<'a>>>
+        args: Box<Vec<SyntaxToken>>
     },
     FunctionDeclarationExpression {
-        identifier: &'a str,
-        parameters: Box<Token<'a>>,
-        code_block: Box<Token<'a>>
+        identifier: String,
+        parameters: Box<SyntaxToken>,
+        code_block: Box<SyntaxToken>
     },
     CodeBlock {
-        tokens: Box<Vec<Token<'a>>>
+        tokens: Box<Vec<SyntaxToken>>
     },
     RootStatement {
-        tokens: Box<Vec<Token<'a>>>
+        tokens: Box<Vec<SyntaxToken>>
     }
 }
 
@@ -57,7 +62,6 @@ pub enum Op {
 #[derive(Debug)]
 pub enum Keyword {
     VarKeyword,
-    IfKeyword
 }
 
 lazy_static::lazy_static! {
@@ -72,11 +76,11 @@ lazy_static::lazy_static! {
     };
 }
 
-fn parse_assignment_expression(exp: Pair<Rule>) -> Token {
+fn parse_assignment_expression(exp: Pair<Rule>) -> SyntaxToken {
     let mut subtokens = exp.into_inner();
 
     let identifier = match subtokens.nth(0) {
-        Some(t) => { Token::IdentifierToken(t.as_str()) },
+        Some(t) => { SyntaxToken::IdentifierToken(String::from(t.as_str())) },
         None => unreachable!("Cannot find identifier when parsing assignment expression")
     };
 
@@ -85,14 +89,14 @@ fn parse_assignment_expression(exp: Pair<Rule>) -> Token {
         None => unreachable!("Cannot find identifier when parsing assignment expression")
     };
 
-    return Token::AssignmentExpression { identifier: Box::new(identifier), expression: Box::new(expression) }
+    return SyntaxToken::AssignmentExpression { identifier: Box::new(identifier), expression: Box::new(expression) }
 }
 
-fn parse_declaration_statement(stmt: Pair<Rule>) -> Token {
+fn parse_declaration_statement(stmt: Pair<Rule>) -> SyntaxToken {
     let mut subtokens = stmt.into_inner();
 
     let identifier = match subtokens.nth(1) {
-        Some(t) => { Token::IdentifierToken(t.as_str()) },
+        Some(t) => { SyntaxToken::IdentifierToken(String::from(t.as_str())) },
         None => unreachable!("Cannot find identifier when parsing declaration statement")
     };
 
@@ -101,14 +105,14 @@ fn parse_declaration_statement(stmt: Pair<Rule>) -> Token {
         None => unreachable!("Cannot find expression when parsing declaration statement")
     };
 
-    return Token::DeclarationStatement { identifier: Box::new(identifier), expression: Box::new(expression) }
+    return SyntaxToken::DeclarationStatement { identifier: Box::new(identifier), expression: Box::new(expression) }
 }
 
-fn parse_call_expression(exp: Pair<Rule>) -> Token {
+fn parse_call_expression(exp: Pair<Rule>) -> SyntaxToken {
     let mut subtokens = exp.into_inner();
 
     let identifier = match subtokens.nth(0) {
-        Some(t) => { Token::IdentifierToken(t.as_str()) },
+        Some(t) => { SyntaxToken::IdentifierToken(String::from(t.as_str())) },
         None => unreachable!("Cannot find identifier when parsing call expression")
     };
 
@@ -117,50 +121,50 @@ fn parse_call_expression(exp: Pair<Rule>) -> Token {
         None => unreachable!("Cannot find arguments when parsing call expression")
     };
 
-    return Token::CallExpression { identifier: Box::new(identifier), arguments: Box::new(arguments) }
+    return SyntaxToken::CallExpression { identifier: Box::new(identifier), arguments: Box::new(arguments) }
 }
 
-fn parse_function_arguments(expr: Pair<Rule>) -> Token {
+fn parse_function_arguments(expr: Pair<Rule>) -> SyntaxToken {
     let subtokens = expr.into_inner();
 
-    let mut expressions: Vec<Token> = Vec::new();
+    let mut expressions: Vec<SyntaxToken> = Vec::new();
     subtokens.for_each(|token| {
         let parsed = parse( Pairs::single(token) );
         expressions.push(parsed);
     });
 
-    return Token::FunctionArgumentsToken { args: Box::new(expressions) }
+    return SyntaxToken::FunctionArgumentsToken { args: Box::new(expressions) }
 }
 
-fn parse_code_bloc(expr: Pair<Rule>) -> Token {
+fn parse_code_bloc(expr: Pair<Rule>) -> SyntaxToken {
     let subtokens = expr.into_inner();
 
-    let mut tokens: Vec<Token> = Vec::new();
+    let mut tokens: Vec<SyntaxToken> = Vec::new();
     subtokens.for_each(|token| {
         let parsed = parse(Pairs::single(token));
         tokens.push(parsed);
     });
 
-    return Token::CodeBlock { tokens: Box::new(tokens) }
+    return SyntaxToken::CodeBlock { tokens: Box::new(tokens) }
 }
 
-fn parse_parameters(expr: Pair<Rule>) -> Token {
+fn parse_parameters(expr: Pair<Rule>) -> SyntaxToken {
     // for now, this is the same code as
     // parse_arguments, this will change later
     // when we add typing
 
     let subtokens = expr.into_inner();
 
-    let mut expressions: Vec<Token> = Vec::new();
+    let mut expressions: Vec<SyntaxToken> = Vec::new();
     subtokens.for_each(|token| {
         let parsed = parse( Pairs::single(token) );
         expressions.push(parsed);
     });
 
-    return Token::FunctionArgumentsToken { args: Box::new(expressions) }
+    return SyntaxToken::FunctionArgumentsToken { args: Box::new(expressions) }
 }
 
-fn parse_function_declaration(expr: Pair<Rule>) -> Token {
+fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
     let mut subtokens = expr.into_inner();
 
     let identifier = match subtokens.nth(0) {
@@ -178,30 +182,30 @@ fn parse_function_declaration(expr: Pair<Rule>) -> Token {
         None => unreachable!("Cannot find code block when parsing function delcaration")
     };
 
-    return Token::FunctionDeclarationExpression { identifier: identifier, parameters: Box::new(parameters), code_block: Box::new(code_block) }
+    return SyntaxToken::FunctionDeclarationExpression { identifier: String::from(identifier), parameters: Box::new(parameters), code_block: Box::new(code_block) }
 }
 
-fn parse_root_statement(stmt: Pair<Rule>) -> Token {
+fn parse_root_statement(stmt: Pair<Rule>) -> SyntaxToken {
     let subtokens = stmt.into_inner();
 
-    let mut tokens: Vec<Token> = Vec::new();
+    let mut tokens: Vec<SyntaxToken> = Vec::new();
     subtokens.for_each(|token| {
         let parsed = parse(Pairs::single(token));
         tokens.push(parsed);
     });
 
-    return Token::RootStatement { tokens: Box::new(tokens) }
+    return SyntaxToken::RootStatement { tokens: Box::new(tokens) }
 }
 
-fn parse(pairs: Pairs<Rule>) -> Token {
+fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
     PRATT_PARSER
         .map_primary(|primary| match primary.as_rule() {
-            Rule::number_token => { Token::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
-            Rule::string_token => { Token::StringToken(primary.as_str()) },
-            Rule::identifier_token => { Token::IdentifierToken(primary.as_str()) }
+            Rule::number_token => { SyntaxToken::NumberToken(primary.as_str().parse::<i32>().unwrap()) },
+            Rule::string_token => { SyntaxToken::StringToken(String::from(primary.as_str())) },
+            Rule::identifier_token => { SyntaxToken::IdentifierToken(String::from(primary.as_str())) }
             Rule::expression => { parse(primary.into_inner()) }
             Rule::expression_statement => { parse(primary.into_inner()) }
-            Rule::var_keyword => { Token::KeywordToken(Keyword::VarKeyword) }
+            Rule::var_keyword => { SyntaxToken::KeywordToken(Keyword::VarKeyword) }
             Rule::declaration_statement => { parse_declaration_statement(primary) }
             Rule::assignment_expression => { parse_assignment_expression(primary) }
             Rule::call_expression => { parse_call_expression(primary) }
@@ -221,23 +225,20 @@ fn parse(pairs: Pairs<Rule>) -> Token {
                 rule => unreachable!("Expected an infix operation, got '{:?}'", rule)
             };
 
-            Token::BinExpression { lhs: Box::new(lhs), op, rhs: Box::new(rhs) }
+            SyntaxToken::BinExpression { lhs: Box::new(lhs), op, rhs: Box::new(rhs) }
         })
         .parse(pairs)
 }
 
-pub fn parse_contents(text: String) {
-    match AltoParser::parse(Rule::module, &text) {
+pub fn parse_contents(text: String) -> Result<SyntaxToken, ParseError> {
+    let t = text.clone();
+    match AltoParser::parse(Rule::module, t.as_str()) {
         Ok(mut pairs) => {
-            println!(
-                "Parsed: {:#?}",
-                parse(
-                    pairs.next().unwrap().into_inner()
-                )
-            );
+            let token = parse(pairs.next().unwrap().into_inner());
+            return Ok(token);
         }
-        Err(e) => {
-            eprintln!("Parse failed: {:?}", e)
+        Err(_) => {
+            return Err(ParseError::Failed)
         }
     }
 }

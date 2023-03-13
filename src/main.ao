@@ -1,6 +1,1 @@
-var x -> 9
-print(x)
-
-func main() {
-    print("Hello World")
-}
+1 + 2
