@@ -23,6 +23,10 @@ pub enum BoundNode {
         op: Op,
         rhs: Box<BoundNode>,
         tp: Type
+    },
+    AssignmentExpression {
+        identifier: String,
+        expression: Box<BoundNode>
     }
 }
 
@@ -42,6 +46,14 @@ fn bind_root_statement(tokens: Vec<SyntaxToken>) -> BoundNode {
     BoundNode::RootStatement { tokens: Box::new(bounded) }
 }
 
+fn bind_number_token(num: i32) -> BoundNode {
+    BoundNode::NumberLiteral(num)
+}
+
+fn bind_string_token(str: String) -> BoundNode {
+    BoundNode::StringLiteral(str)
+}
+
 fn bind_bin_expression(lhs: SyntaxToken, op: Op, rhs: SyntaxToken) -> BoundNode {
     let left = bind(lhs);
     let right = bind(rhs);
@@ -55,12 +67,14 @@ fn bind_bin_expression(lhs: SyntaxToken, op: Op, rhs: SyntaxToken) -> BoundNode 
     BoundNode::BinExpression { lhs: Box::new(left), op: op, rhs: Box::new(right), tp: left_type }
 }
 
-fn bind_number_token(num: i32) -> BoundNode {
-    BoundNode::NumberLiteral(num)
-}
+fn bind_assignment_expression(identifier: SyntaxToken, expression: SyntaxToken) -> BoundNode {
 
-fn bind_string_token(str: String) -> BoundNode {
-    BoundNode::StringLiteral(str)
+    if let SyntaxToken::IdentifierToken(str) = identifier {
+        let bound_expr = bind(expression);
+        BoundNode::AssignmentExpression { identifier: str, expression: Box::new(bound_expr) }
+    } else {
+        panic!("Cannot assign to: '{:?}'", identifier)
+    }
 }
 
 fn get_type(node: &BoundNode) -> Type {
@@ -69,15 +83,17 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::StringLiteral(..) => Type::String,
         BoundNode::RootStatement {..} => Type::Void,
         BoundNode::BinExpression { lhs: _, op: _, rhs: _, tp } => tp.clone(),
+        BoundNode::AssignmentExpression { identifier: _, expression } => get_type(expression)
     }
 }
 
 pub fn bind(token: SyntaxToken) -> BoundNode {
     match token {
         SyntaxToken::RootStatement { tokens } => { bind_root_statement(*tokens) }
-        SyntaxToken::BinExpression { lhs, op, rhs } => { bind_bin_expression(*lhs, op, *rhs) },
         SyntaxToken::NumberToken(num) => { bind_number_token(num) },
         SyntaxToken::StringToken(str) => { bind_string_token(str) },
+        SyntaxToken::BinExpression { lhs, op, rhs } => { bind_bin_expression(*lhs, op, *rhs) },
+        SyntaxToken::AssignmentExpression { identifier, expression } => { bind_assignment_expression(*identifier, *expression) }
         _ => unreachable!("Unknown token: '{:?}'", token)
     }
 }
