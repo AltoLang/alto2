@@ -43,7 +43,7 @@ pub enum SyntaxToken {
         parameters: Box<SyntaxToken>,
         code_block: Box<SyntaxToken>
     },
-    CodeBlock {
+    CodeBlockStatement {
         tokens: Box<Vec<SyntaxToken>>
     },
     RootStatement {
@@ -136,7 +136,7 @@ fn parse_function_arguments(expr: Pair<Rule>) -> SyntaxToken {
     return SyntaxToken::FunctionArgumentsToken { args: Box::new(expressions) }
 }
 
-fn parse_code_bloc(expr: Pair<Rule>) -> SyntaxToken {
+fn parse_code_block_statement(expr: Pair<Rule>) -> SyntaxToken {
     let subtokens = expr.into_inner();
 
     let mut tokens: Vec<SyntaxToken> = Vec::new();
@@ -145,7 +145,7 @@ fn parse_code_bloc(expr: Pair<Rule>) -> SyntaxToken {
         tokens.push(parsed);
     });
 
-    return SyntaxToken::CodeBlock { tokens: Box::new(tokens) }
+    return SyntaxToken::CodeBlockStatement { tokens: Box::new(tokens) }
 }
 
 fn parse_parameters(expr: Pair<Rule>) -> SyntaxToken {
@@ -212,7 +212,7 @@ fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
             Rule::function_args => { parse_function_arguments(primary) }
             Rule::function_definition_expression => { parse_function_declaration(primary) }
             Rule::parameter_expression => { parse_parameters(primary) }
-            Rule::code_block => { parse_code_bloc(primary) }
+            Rule::code_block_statement => { parse_code_block_statement(primary) }
             Rule::root => { parse_root_statement(primary) }
             rule => unreachable!("Token::parse expects an atom, found {:?}", rule)
         })

@@ -26,8 +26,8 @@ keyword = _{ var_keyword | if_keyword }
 string_token = { "\"" ~ letters ~ "\"" | "'" ~ letters ~ "'" }
 identifier_token = @{ !keyword ~ letters }
 
-statement = _{ code_block | declaration_statement | expression_statement }
-    code_block = { "{" ~ (statement)* ~ "}" }
+statement = _{ code_block_statement | declaration_statement | expression_statement }
+    code_block_statement = { "{" ~ (statement)* ~ "}" }
     declaration_statement = { var_keyword ~ identifier_token ~ assign_operator ~ expression}
     expression_statement = { expression }
 
@@ -41,7 +41,7 @@ atom = _{
     "(" ~ expression ~ ")"
 }
 
-function_definition_expression = { "func" ~ identifier_token ~ parameter_expression ~ code_block }
+function_definition_expression = { "func" ~ identifier_token ~ parameter_expression ~ code_block_statement }
 parameter_expression = { "(" ~ ( (func_argument ~ ",")* ~ func_argument+ )? ~ ")"}
 func_parameter = _{ identifier_token }
 

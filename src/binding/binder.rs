@@ -16,7 +16,7 @@ pub enum BoundNode {
     NumberLiteral(i32),
     StringLiteral(String),
     RootStatement {
-        tokens: Box<Vec<BoundNode>>
+        members: Box<Vec<BoundNode>>
     },
     BinExpression {
         lhs: Box<BoundNode>,
@@ -31,6 +31,9 @@ pub enum BoundNode {
     DeclarationStatement {
         identifier: String,
         expression: Box<BoundNode>
+    },
+    CodeBlockStatement {
+        members: Box<Vec<BoundNode>>
     }
 }
 
@@ -47,7 +50,7 @@ fn bind_root_statement(tokens: Vec<SyntaxToken>) -> BoundNode {
         bounded.push(bind(t));
     }
 
-    BoundNode::RootStatement { tokens: Box::new(bounded) }
+    BoundNode::RootStatement { members: Box::new(bounded) }
 }
 
 fn bind_number_token(num: i32) -> BoundNode {
@@ -97,6 +100,15 @@ fn bind_declaration_statement(identifier: SyntaxToken, expression: SyntaxToken) 
     }
 }
 
+fn bind_code_block_statement(tokens: Vec<SyntaxToken>) -> BoundNode {
+    let mut bounded = Vec::new();
+    for t in tokens {
+        bounded.push(bind(t));
+    }
+
+    BoundNode::CodeBlockStatement { members: Box::new(bounded) }
+}
+
 fn get_type(node: &BoundNode) -> Type {
     match node {
         BoundNode::NumberLiteral(..) => Type::Number,
@@ -104,7 +116,8 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::RootStatement {..} => Type::Void,
         BoundNode::BinExpression { lhs: _, op: _, rhs: _, tp } => tp.clone(),
         BoundNode::AssignmentExpression { identifier: _, expression } => get_type(expression),
-        BoundNode::DeclarationStatement { identifier: _, expression: _ } => Type::Void
+        BoundNode::DeclarationStatement { identifier: _, expression: _ } => Type::Void,
+        BoundNode::CodeBlockStatement { members: _ } => Type::Void
     }
 }
 
@@ -114,8 +127,9 @@ pub fn bind(token: SyntaxToken) -> BoundNode {
         SyntaxToken::NumberToken(num) => { bind_number_token(num) },
         SyntaxToken::StringToken(str) => { bind_string_token(str) },
         SyntaxToken::BinExpression { lhs, op, rhs } => { bind_bin_expression(*lhs, op, *rhs) },
-        SyntaxToken::AssignmentExpression { identifier, expression } => { bind_assignment_expression(*identifier, *expression) }
-        SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(*identifier, *expression) }
+        SyntaxToken::AssignmentExpression { identifier, expression } => { bind_assignment_expression(*identifier, *expression) },
+        SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(*identifier, *expression) },
+        SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(*tokens) }
         _ => unreachable!("Unknown token: '{:?}'", token)
     }
 }
