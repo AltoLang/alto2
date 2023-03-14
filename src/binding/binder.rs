@@ -41,7 +41,11 @@ pub enum BoundNode {
         code_block: Box<BoundNode>
     },
     FunctionArguments {
-        agrs: Box<Vec<BoundNode>>
+        agrs: Vec<String>
+    },
+    CallExpression {
+        identifier: String,
+        args: Box<BoundNode>
     }
 }
 
@@ -129,13 +133,23 @@ fn bind_function_declaration_expression(identifier: SyntaxToken, params: SyntaxT
 }
 
 fn bind_function_arguments(args: Vec<SyntaxToken>) -> BoundNode {
-    let mut arguments: Vec<BoundNode> = Vec::new();
+    let mut arguments: Vec<String> = Vec::new();
     for arg in args {
-        let bounded = bind(arg);
-        arguments.push(bounded);
+        if let SyntaxToken::IdentifierToken(str) = arg {
+            arguments.push(str);
+        }
     }
 
-    BoundNode::FunctionArguments { agrs: Box::new(arguments) }    
+    BoundNode::FunctionArguments { agrs: arguments }    
+}
+
+fn bind_call_expression(identifier: SyntaxToken, args: SyntaxToken) -> BoundNode {
+    let (SyntaxToken::IdentifierToken(call_ident), SyntaxToken::FunctionArgumentsToken { .. }) = (identifier, &args) else {
+        panic!("Incorrect call expression signature")
+    };
+
+    let arguments = bind(args);
+    BoundNode::CallExpression { identifier: call_ident, args: Box::new(arguments) }
 }
 
 fn get_type(node: &BoundNode) -> Type {
@@ -148,7 +162,8 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::DeclarationStatement { identifier: _, expression: _ } => Type::Void,
         BoundNode::CodeBlockStatement { members: _ } => Type::Void,
         BoundNode::FunctionDeclarationExpression { identifier: _, params: _, code_block: _ } => Type::Void, // this might be changed later, expressions cannot be of type void...
-        BoundNode::FunctionArguments { agrs: _ } => Type::Void
+        BoundNode::FunctionArguments { agrs: _ } => Type::Void,
+        BoundNode::CallExpression { identifier: _, args: _ } => Type::Void // TODO: check for function type
     }
 }
 
@@ -163,6 +178,7 @@ pub fn bind(token: SyntaxToken) -> BoundNode {
         SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(*tokens) },
         SyntaxToken::FunctionDeclarationExpression { identifier, parameters, code_block } => { bind_function_declaration_expression(*identifier, *parameters, *code_block) },
         SyntaxToken::FunctionArgumentsToken { args } => { bind_function_arguments(*args) },
+        SyntaxToken::CallExpression { identifier, arguments } => { bind_call_expression(*identifier, *arguments) }
         _ => unreachable!("Unknown token: '{:?}'", token)
     }
 }
