@@ -39,7 +39,7 @@ pub enum SyntaxToken {
         args: Box<Vec<SyntaxToken>>
     },
     FunctionDeclarationExpression {
-        identifier: String,
+        identifier: Box<SyntaxToken>,
         parameters: Box<SyntaxToken>,
         code_block: Box<SyntaxToken>
     },
@@ -168,7 +168,7 @@ fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
     let mut subtokens = expr.into_inner();
 
     let identifier = match subtokens.nth(0) {
-        Some(t) => { t.as_str() }
+        Some(t) => { parse( Pairs::single(t) ) }
         None => unreachable!("Cannot find identifier token when parsing function declaration")
     };
 
@@ -182,7 +182,7 @@ fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
         None => unreachable!("Cannot find code block when parsing function delcaration")
     };
 
-    return SyntaxToken::FunctionDeclarationExpression { identifier: String::from(identifier), parameters: Box::new(parameters), code_block: Box::new(code_block) }
+    return SyntaxToken::FunctionDeclarationExpression { identifier: Box::new(identifier), parameters: Box::new(parameters), code_block: Box::new(code_block) }
 }
 
 fn parse_root_statement(stmt: Pair<Rule>) -> SyntaxToken {

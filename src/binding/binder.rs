@@ -34,6 +34,14 @@ pub enum BoundNode {
     },
     CodeBlockStatement {
         members: Box<Vec<BoundNode>>
+    },
+    FunctionDeclarationExpression {
+        identifier: String,
+        params: Box<BoundNode>,
+        code_block: Box<BoundNode>
+    },
+    FunctionArguments {
+        agrs: Box<Vec<BoundNode>>
     }
 }
 
@@ -109,6 +117,27 @@ fn bind_code_block_statement(tokens: Vec<SyntaxToken>) -> BoundNode {
     BoundNode::CodeBlockStatement { members: Box::new(bounded) }
 }
 
+fn bind_function_declaration_expression(identifier: SyntaxToken, params: SyntaxToken, block: SyntaxToken) -> BoundNode {
+    let (SyntaxToken::IdentifierToken(func_ident), SyntaxToken::FunctionArgumentsToken { .. }, SyntaxToken::CodeBlockStatement { .. }) = (identifier, &params, &block) else {
+        panic!("Incorrect token signature for function declaration")
+    };
+
+    let params = bind(params);
+    let block = bind(block);
+
+    BoundNode::FunctionDeclarationExpression { identifier: func_ident, params: Box::new(params), code_block: Box::new(block) }
+}
+
+fn bind_function_arguments(args: Vec<SyntaxToken>) -> BoundNode {
+    let mut arguments: Vec<BoundNode> = Vec::new();
+    for arg in args {
+        let bounded = bind(arg);
+        arguments.push(bounded);
+    }
+
+    BoundNode::FunctionArguments { agrs: Box::new(arguments) }    
+}
+
 fn get_type(node: &BoundNode) -> Type {
     match node {
         BoundNode::NumberLiteral(..) => Type::Number,
@@ -117,7 +146,9 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::BinExpression { lhs: _, op: _, rhs: _, tp } => tp.clone(),
         BoundNode::AssignmentExpression { identifier: _, expression } => get_type(expression),
         BoundNode::DeclarationStatement { identifier: _, expression: _ } => Type::Void,
-        BoundNode::CodeBlockStatement { members: _ } => Type::Void
+        BoundNode::CodeBlockStatement { members: _ } => Type::Void,
+        BoundNode::FunctionDeclarationExpression { identifier: _, params: _, code_block: _ } => Type::Void, // this might be changed later, expressions cannot be of type void...
+        BoundNode::FunctionArguments { agrs: _ } => Type::Void
     }
 }
 
@@ -129,7 +160,9 @@ pub fn bind(token: SyntaxToken) -> BoundNode {
         SyntaxToken::BinExpression { lhs, op, rhs } => { bind_bin_expression(*lhs, op, *rhs) },
         SyntaxToken::AssignmentExpression { identifier, expression } => { bind_assignment_expression(*identifier, *expression) },
         SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(*identifier, *expression) },
-        SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(*tokens) }
+        SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(*tokens) },
+        SyntaxToken::FunctionDeclarationExpression { identifier, parameters, code_block } => { bind_function_declaration_expression(*identifier, *parameters, *code_block) },
+        SyntaxToken::FunctionArgumentsToken { args } => { bind_function_arguments(*args) },
         _ => unreachable!("Unknown token: '{:?}'", token)
     }
 }
