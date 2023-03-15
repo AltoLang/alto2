@@ -141,6 +141,15 @@ fn bind_assignment_expression(scope: &mut BoundScope, identifier: SyntaxToken, e
         }
 
         // TODO: Check if variable exists in scope
+        let existing_symbol = scope.get_variable(str.clone());
+        match existing_symbol {
+            Some(_) => unreachable!("Variable with name '{}' already exists in the current scope", &str),
+            None => {
+                // declare the variable
+                let symbol = VariableSymbol { name: str.clone(), tp: get_type(&bound_expr) };
+                scope.declare_variable(symbol);
+            }
+        }
 
         BoundNode::AssignmentExpression { identifier: str, expression: Box::new(bound_expr) }
     } else {
