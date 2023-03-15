@@ -22,7 +22,7 @@ fn parse_file() {
     let root = syntax::parser::parse_contents(code).unwrap();
     dbg!(&root);
     
-    let bound = binding::binder::bind(root);
+    let bound = binding::binder::bind_global_scope(root);
     dbg!(bound);
 }
 

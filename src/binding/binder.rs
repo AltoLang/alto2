@@ -1,15 +1,28 @@
 use crate::syntax::parser::{SyntaxToken, Op};
 
-/*
-QUICK NOTE:
-    this is how you can check for enum variants
+pub struct VariableSymbol {
+    name: String,
+    tp: Type
+}
 
-    fn e_test(t: SyntaxToken) {
-        if let SyntaxToken::DeclarationStatement { identifier, expression } = t {
+pub struct BoundScope<'a> {
+    variables: Vec<VariableSymbol>,
+    parent: Option<Box<&'a BoundScope<'a>>>
+}
 
-        }
+impl<'a> BoundScope<'a> {
+    pub fn declare_variable(&mut self, variable: VariableSymbol) {
+        self.variables.push(variable);
     }
-*/
+
+    pub fn new_root() -> BoundScope<'a> {
+        BoundScope { variables: vec![], parent: None }
+    }
+
+    pub fn new(parent: &'a BoundScope<'a>) -> BoundScope<'a> {
+        BoundScope { variables: vec![], parent: Some(Box::new(parent)) }
+    }
+}
 
 #[derive(Debug)]
 pub enum BoundNode {
@@ -56,10 +69,10 @@ pub enum Type {
     Void
 }
 
-fn bind_root_statement(tokens: Vec<SyntaxToken>) -> BoundNode {
+fn bind_root_statement(scope: &BoundScope, tokens: Vec<SyntaxToken>) -> BoundNode {
     let mut bounded = Vec::new();
     for t in tokens {
-        bounded.push(bind(t));
+        bounded.push(bind(t, scope));
     }
 
     BoundNode::RootStatement { members: Box::new(bounded) }
@@ -73,9 +86,9 @@ fn bind_string_token(str: String) -> BoundNode {
     BoundNode::StringLiteral(str)
 }
 
-fn bind_bin_expression(lhs: SyntaxToken, op: Op, rhs: SyntaxToken) -> BoundNode {
-    let left = bind(lhs);
-    let right = bind(rhs);
+fn bind_bin_expression(scope: &BoundScope, lhs: SyntaxToken, op: Op, rhs: SyntaxToken) -> BoundNode {
+    let left = bind(lhs, scope);
+    let right = bind(rhs, scope);
 
     let left_type = get_type(&left);
     let right_type = get_type(&right);
@@ -86,12 +99,14 @@ fn bind_bin_expression(lhs: SyntaxToken, op: Op, rhs: SyntaxToken) -> BoundNode 
     BoundNode::BinExpression { lhs: Box::new(left), op: op, rhs: Box::new(right), tp: left_type }
 }
 
-fn bind_assignment_expression(identifier: SyntaxToken, expression: SyntaxToken) -> BoundNode {
+fn bind_assignment_expression(scope: &BoundScope, identifier: SyntaxToken, expression: SyntaxToken) -> BoundNode {
     if let SyntaxToken::IdentifierToken(str) = identifier {
-        let bound_expr = bind(expression);
+        let bound_expr = bind(expression, scope);
         if get_type(&bound_expr) == Type::Void {
             panic!("Cannot assign void to '{:?}'", str)
         }
+
+        // TODO: Check if variable exists in scope
 
         BoundNode::AssignmentExpression { identifier: str, expression: Box::new(bound_expr) }
     } else {
@@ -99,12 +114,17 @@ fn bind_assignment_expression(identifier: SyntaxToken, expression: SyntaxToken) 
     }
 }
 
-fn bind_declaration_statement(identifier: SyntaxToken, expression: SyntaxToken) -> BoundNode {
+fn bind_declaration_statement(scope: &BoundScope, identifier: SyntaxToken, expression: SyntaxToken) -> BoundNode {
     if let SyntaxToken::IdentifierToken(str) = identifier {
-        let bound_expr = bind(expression);
+        let bound_expr = bind(expression, scope);
         if get_type(&bound_expr) == Type::Void {
             panic!("Cannot assign void to '{:?}'", str)
         }
+
+        // TODO: Check for duplicate variables
+
+        // declare the variable
+        let symbol = VariableSymbol { name: str.clone(), tp: get_type(&bound_expr) };
 
         BoundNode::DeclarationStatement { identifier: str, expression: Box::new(bound_expr) }
     } else {
@@ -112,22 +132,26 @@ fn bind_declaration_statement(identifier: SyntaxToken, expression: SyntaxToken) 
     }
 }
 
-fn bind_code_block_statement(tokens: Vec<SyntaxToken>) -> BoundNode {
+fn bind_code_block_statement(scope: &BoundScope, tokens: Vec<SyntaxToken>) -> BoundNode {
+    // TODO: Create new scope
+    let child_scope = BoundScope::new(scope);
+
     let mut bounded = Vec::new();
     for t in tokens {
-        bounded.push(bind(t));
+        let bounded_token = bind(t, &child_scope);
+        bounded.push(bounded_token);
     }
 
     BoundNode::CodeBlockStatement { members: Box::new(bounded) }
 }
 
-fn bind_function_declaration_expression(identifier: SyntaxToken, params: SyntaxToken, block: SyntaxToken) -> BoundNode {
+fn bind_function_declaration_expression(scope: &BoundScope, identifier: SyntaxToken, params: SyntaxToken, block: SyntaxToken) -> BoundNode {
     let (SyntaxToken::IdentifierToken(func_ident), SyntaxToken::FunctionArgumentsToken { .. }, SyntaxToken::CodeBlockStatement { .. }) = (identifier, &params, &block) else {
         panic!("Incorrect token signature for function declaration")
     };
 
-    let params = bind(params);
-    let block = bind(block);
+    let params = bind(params, scope);
+    let block = bind(block, scope);
 
     BoundNode::FunctionDeclarationExpression { identifier: func_ident, params: Box::new(params), code_block: Box::new(block) }
 }
@@ -143,12 +167,12 @@ fn bind_function_arguments(args: Vec<SyntaxToken>) -> BoundNode {
     BoundNode::FunctionArguments { agrs: arguments }    
 }
 
-fn bind_call_expression(identifier: SyntaxToken, args: SyntaxToken) -> BoundNode {
+fn bind_call_expression(scope: &BoundScope, identifier: SyntaxToken, args: SyntaxToken) -> BoundNode {
     let (SyntaxToken::IdentifierToken(call_ident), SyntaxToken::FunctionArgumentsToken { .. }) = (identifier, &args) else {
         panic!("Incorrect call expression signature")
     };
 
-    let arguments = bind(args);
+    let arguments = bind(args, scope);
     BoundNode::CallExpression { identifier: call_ident, args: Box::new(arguments) }
 }
 
@@ -167,18 +191,24 @@ fn get_type(node: &BoundNode) -> Type {
     }
 }
 
-pub fn bind(token: SyntaxToken) -> BoundNode {
+fn bind(token: SyntaxToken, scope: &BoundScope) -> BoundNode {
     match token {
-        SyntaxToken::RootStatement { tokens } => { bind_root_statement(*tokens) }
+        SyntaxToken::RootStatement { tokens } => { bind_root_statement(scope, *tokens) }
         SyntaxToken::NumberToken(num) => { bind_number_token(num) },
         SyntaxToken::StringToken(str) => { bind_string_token(str) },
-        SyntaxToken::BinExpression { lhs, op, rhs } => { bind_bin_expression(*lhs, op, *rhs) },
-        SyntaxToken::AssignmentExpression { identifier, expression } => { bind_assignment_expression(*identifier, *expression) },
-        SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(*identifier, *expression) },
-        SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(*tokens) },
-        SyntaxToken::FunctionDeclarationExpression { identifier, parameters, code_block } => { bind_function_declaration_expression(*identifier, *parameters, *code_block) },
+        SyntaxToken::BinExpression { lhs, op, rhs } => { bind_bin_expression(scope, *lhs, op, *rhs) },
+        SyntaxToken::AssignmentExpression { identifier, expression } => { bind_assignment_expression(scope, *identifier, *expression) },
+        SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(scope, *identifier, *expression) },
+        SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(scope, *tokens) },
+        SyntaxToken::FunctionDeclarationExpression { identifier, parameters, code_block } => { bind_function_declaration_expression(scope, *identifier, *parameters, *code_block) },
         SyntaxToken::FunctionArgumentsToken { args } => { bind_function_arguments(*args) },
-        SyntaxToken::CallExpression { identifier, arguments } => { bind_call_expression(*identifier, *arguments) }
+        SyntaxToken::CallExpression { identifier, arguments } => { bind_call_expression(scope, *identifier, *arguments) }
         _ => unreachable!("Unknown token: '{:?}'", token)
     }
+}
+
+pub fn bind_global_scope(token: SyntaxToken) -> BoundNode {
+    // create global scope and enter binding APIs
+    let global_scope = BoundScope::new_root();
+    bind(token, &global_scope)
 }
