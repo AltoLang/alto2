@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::syntax::parser::{SyntaxToken, Op};
 
 pub struct VariableSymbol {
@@ -47,6 +49,9 @@ pub enum BoundNode {
         lhs: Box<BoundNode>,
         op: Op,
         rhs: Box<BoundNode>,
+        tp: Type
+    },
+    ReferenceExpression {
         tp: Type
     },
     AssignmentExpression {
@@ -109,6 +114,23 @@ fn bind_bin_expression(scope: &mut BoundScope, lhs: SyntaxToken, op: Op, rhs: Sy
     }
 
     BoundNode::BinExpression { lhs: Box::new(left), op: op, rhs: Box::new(right), tp: left_type }
+}
+
+fn bind_reference_expression(scope: &mut BoundScope, identifier: SyntaxToken) -> BoundNode {
+    // check if variable reference exists
+    // currently reference expressions only reference variables
+
+    if let SyntaxToken::IdentifierToken(str) = identifier {
+        let symbol = scope.get_variable(str.clone());
+        match symbol {
+            Some(s) => { 
+                BoundNode::ReferenceExpression { tp: s.tp.clone() }
+            },
+            None => panic!("Cannot find reference to '{}'", str)
+        }
+    } else {
+        panic!("Cannot find identifier when binding reference expression")
+    }
 }
 
 fn bind_assignment_expression(scope: &mut BoundScope, identifier: SyntaxToken, expression: SyntaxToken) -> BoundNode {
@@ -195,6 +217,7 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::StringLiteral(..) => Type::String,
         BoundNode::RootStatement {..} => Type::Void,
         BoundNode::BinExpression { lhs: _, op: _, rhs: _, tp } => tp.clone(),
+        BoundNode::ReferenceExpression { tp } => tp.clone(),
         BoundNode::AssignmentExpression { identifier: _, expression } => get_type(expression),
         BoundNode::DeclarationStatement { identifier: _, expression: _ } => Type::Void,
         BoundNode::CodeBlockStatement { members: _ } => Type::Void,
@@ -210,6 +233,7 @@ fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
         SyntaxToken::NumberToken(num) => { bind_number_token(num) },
         SyntaxToken::StringToken(str) => { bind_string_token(str) },
         SyntaxToken::BinExpression { lhs, op, rhs } => { bind_bin_expression(scope, *lhs, op, *rhs) },
+        SyntaxToken::ReferenceExpression { identifier } => { bind_reference_expression(scope, *identifier) }
         SyntaxToken::AssignmentExpression { identifier, expression } => { bind_assignment_expression(scope, *identifier, *expression) },
         SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(scope, *identifier, *expression) },
         SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(scope, *tokens) },

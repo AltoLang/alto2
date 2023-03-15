@@ -37,7 +37,7 @@ atom = _{
     call_expression |
     number_token |
     string_token |
-    identifier_token |
+    reference_expression |
     "(" ~ expression ~ ")"
 }
 
@@ -46,6 +46,7 @@ parameter_expression = { "(" ~ ( (func_argument ~ ",")* ~ func_argument+ )? ~ ")
 func_parameter = _{ identifier_token }
 
 assignment_expression = { identifier_token ~ assign_operator ~ expression }
+reference_expression = { identifier_token }
 
 call_expression = { identifier_token ~ function_args }
 function_args = { "(" ~ ((func_argument ~ ",")* ~ func_argument +)? ~ ")"}

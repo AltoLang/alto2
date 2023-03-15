@@ -23,6 +23,9 @@ pub enum SyntaxToken {
         op: Op,
         rhs: Box<SyntaxToken>
     },
+    ReferenceExpression {
+        identifier: Box<SyntaxToken>
+    },
     AssignmentExpression {
         identifier: Box<SyntaxToken>,
         expression: Box<SyntaxToken>
@@ -74,6 +77,20 @@ lazy_static::lazy_static! {
             .op(Op::infix(addition, Left) | Op::infix(subtraction, Left))
             .op(Op::infix(division, Left) | Op::infix(multiplication, Left))
     };
+}
+
+fn parse_reference_expression(exp: Pair<Rule>) -> SyntaxToken {
+    let mut subtokens = exp.into_inner();
+    let identifier = match subtokens.nth(0) {
+        Some(t) => { SyntaxToken::IdentifierToken(String::from(t.as_str())) },
+        None => unreachable!("Cannot find identifier when parsing reference expression")
+    };
+
+    if subtokens.count() > 0 {
+        panic!("Reference expression cannot have more than 1 subtoken");
+    }
+
+    SyntaxToken::ReferenceExpression { identifier: Box::new(identifier) }
 }
 
 fn parse_assignment_expression(exp: Pair<Rule>) -> SyntaxToken {
@@ -205,6 +222,7 @@ fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
             Rule::identifier_token => { SyntaxToken::IdentifierToken(String::from(primary.as_str())) }
             Rule::expression => { parse(primary.into_inner()) }
             Rule::expression_statement => { parse(primary.into_inner()) }
+            Rule::reference_expression => { parse_reference_expression(primary) }
             Rule::var_keyword => { SyntaxToken::KeywordToken(Keyword::VarKeyword) }
             Rule::declaration_statement => { parse_declaration_statement(primary) }
             Rule::assignment_expression => { parse_assignment_expression(primary) }
