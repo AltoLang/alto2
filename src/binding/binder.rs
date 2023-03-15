@@ -71,7 +71,7 @@ pub enum BoundNode {
         code_block: Box<BoundNode>
     },
     FunctionArguments {
-        agrs: Vec<String>
+        agrs: Box<Vec<BoundNode>>
     },
     CallExpression {
         identifier: String,
@@ -200,15 +200,14 @@ fn bind_function_declaration_expression(scope: &mut BoundScope, identifier: Synt
     BoundNode::FunctionDeclarationExpression { identifier: func_ident, params: Box::new(params), code_block: Box::new(block) }
 }
 
-fn bind_function_arguments(args: Vec<SyntaxToken>) -> BoundNode {
-    let mut arguments: Vec<String> = Vec::new();
+fn bind_function_arguments(scope: &mut BoundScope, args: Vec<SyntaxToken>) -> BoundNode {
+    let mut arguments: Vec<BoundNode> = Vec::new();
     for arg in args {
-        if let SyntaxToken::IdentifierToken(str) = arg {
-            arguments.push(str);
-        }
+        let bounded = bind(arg, scope);
+        arguments.push(bounded);
     }
 
-    BoundNode::FunctionArguments { agrs: arguments }    
+    BoundNode::FunctionArguments { agrs: Box::new(arguments) }    
 }
 
 fn bind_call_expression(scope: &mut BoundScope, identifier: SyntaxToken, args: SyntaxToken) -> BoundNode {
@@ -247,7 +246,7 @@ fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
         SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(scope, *identifier, *expression) },
         SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(scope, *tokens) },
         SyntaxToken::FunctionDeclarationExpression { identifier, parameters, code_block } => { bind_function_declaration_expression(scope, *identifier, *parameters, *code_block) },
-        SyntaxToken::FunctionArgumentsToken { args } => { bind_function_arguments(*args) },
+        SyntaxToken::FunctionArgumentsToken { args } => { bind_function_arguments(scope, *args) },
         SyntaxToken::CallExpression { identifier, arguments } => { bind_call_expression(scope, *identifier, *arguments) }
         _ => unreachable!("Unknown token: '{:?}'", token)
     }
