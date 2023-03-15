@@ -3,8 +3,7 @@
 // since we need the root rule to contains a list
 // of subtokens.
 
-module = { root }
-root = { (statement)* }
+module = { (statement)* }
 
 WHITESPACE = _{ " " | "\t" }
 NEWLINE = _{ "\n" | "\n\r" }

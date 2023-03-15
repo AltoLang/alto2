@@ -49,7 +49,7 @@ pub enum SyntaxToken {
     CodeBlockStatement {
         tokens: Box<Vec<SyntaxToken>>
     },
-    RootStatement {
+    Module {
         tokens: Box<Vec<SyntaxToken>>
     }
 }
@@ -202,8 +202,8 @@ fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
     return SyntaxToken::FunctionDeclarationExpression { identifier: Box::new(identifier), parameters: Box::new(parameters), code_block: Box::new(code_block) }
 }
 
-fn parse_root_statement(stmt: Pair<Rule>) -> SyntaxToken {
-    let subtokens = stmt.into_inner();
+fn parse_module(module: Pair<Rule>) -> SyntaxToken {
+    let subtokens = module.into_inner();
 
     let mut tokens: Vec<SyntaxToken> = Vec::new();
     subtokens.for_each(|token| {
@@ -211,7 +211,7 @@ fn parse_root_statement(stmt: Pair<Rule>) -> SyntaxToken {
         tokens.push(parsed);
     });
 
-    return SyntaxToken::RootStatement { tokens: Box::new(tokens) }
+    return SyntaxToken::Module { tokens: Box::new(tokens) }
 }
 
 fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
@@ -231,7 +231,7 @@ fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
             Rule::function_definition_expression => { parse_function_declaration(primary) }
             Rule::parameter_expression => { parse_parameters(primary) }
             Rule::code_block_statement => { parse_code_block_statement(primary) }
-            Rule::root => { parse_root_statement(primary) }
+            Rule::module => { parse_module(primary) }
             rule => unreachable!("Token::parse expects an atom, found {:?}", rule)
         })
         .map_infix(|lhs, op, rhs| {
@@ -252,7 +252,7 @@ pub fn parse_contents(text: String) -> Result<SyntaxToken, ParseError> {
     let t = text.clone();
     match AltoParser::parse(Rule::module, t.as_str()) {
         Ok(mut pairs) => {
-            let token = parse(pairs.next().unwrap().into_inner());
+            let token = parse(Pairs::single(pairs.next().unwrap()));
             return Ok(token);
         }
         Err(_) => {

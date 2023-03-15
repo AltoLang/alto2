@@ -42,7 +42,7 @@ impl<'a> BoundScope<'a> {
 pub enum BoundNode {
     NumberLiteral(i32),
     StringLiteral(String),
-    RootStatement {
+    Module {
         members: Box<Vec<BoundNode>>
     },
     BinExpression {
@@ -86,13 +86,13 @@ pub enum Type {
     Void
 }
 
-fn bind_root_statement(scope: &mut BoundScope, tokens: Vec<SyntaxToken>) -> BoundNode {
+fn bind_module(scope: &mut BoundScope, tokens: Vec<SyntaxToken>) -> BoundNode {
     let mut bounded = Vec::new();
     for t in tokens {
         bounded.push(bind(t, scope));
     }
 
-    BoundNode::RootStatement { members: Box::new(bounded) }
+    BoundNode::Module { members: Box::new(bounded) }
 }
 
 fn bind_number_token(num: i32) -> BoundNode {
@@ -223,7 +223,7 @@ fn get_type(node: &BoundNode) -> Type {
     match node {
         BoundNode::NumberLiteral(..) => Type::Number,
         BoundNode::StringLiteral(..) => Type::String,
-        BoundNode::RootStatement {..} => Type::Void,
+        BoundNode::Module {..} => Type::Void,
         BoundNode::BinExpression { lhs: _, op: _, rhs: _, tp } => tp.clone(),
         BoundNode::ReferenceExpression { tp } => tp.clone(),
         BoundNode::AssignmentExpression { identifier: _, expression } => get_type(expression),
@@ -237,7 +237,7 @@ fn get_type(node: &BoundNode) -> Type {
 
 fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
     match token {
-        SyntaxToken::RootStatement { tokens } => { bind_root_statement(scope, *tokens) }
+        SyntaxToken::Module { tokens } => { bind_module(scope, *tokens) }
         SyntaxToken::NumberToken(num) => { bind_number_token(num) },
         SyntaxToken::StringToken(str) => { bind_string_token(str) },
         SyntaxToken::BinExpression { lhs, op, rhs } => { bind_bin_expression(scope, *lhs, op, *rhs) },
