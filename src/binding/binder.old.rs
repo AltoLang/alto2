@@ -94,10 +94,6 @@ pub enum BoundNode {
     FunctionParametersToken {
         params: Box<Vec<BoundNode>>
     },
-    FunctionParameter {
-        name: String,
-        type_annotation: Type
-    },
     FunctionArguments {
         agrs: Box<Vec<BoundNode>>
     },
@@ -219,7 +215,7 @@ fn bind_code_block_statement(scope: &mut BoundScope, tokens: Vec<SyntaxToken>) -
 }
 
 fn bind_function_declaration_expression(scope: &mut BoundScope, identifier: SyntaxToken, params: SyntaxToken, block: SyntaxToken) -> BoundNode {
-    let (SyntaxToken::IdentifierToken(func_ident), SyntaxToken::FunctionParametersToken { .. }, SyntaxToken::CodeBlockStatement { .. }) = (identifier, &params, &block) else {
+    let (SyntaxToken::IdentifierToken(func_ident), SyntaxToken::FunctionArgumentsToken { .. }, SyntaxToken::CodeBlockStatement { .. }) = (identifier, &params, &block) else {
         panic!("Incorrect token signature for function declaration")
     };
 
@@ -250,20 +246,13 @@ fn bind_function_parameters_token(scope: &mut BoundScope, params: Vec<SyntaxToke
     BoundNode::FunctionParametersToken { params: Box::new(bounded) }
 }
 
-fn bind_parameter(name_ident: SyntaxToken, type_annotation_ident: SyntaxToken) -> BoundNode {
-    let (SyntaxToken::IdentifierToken(name), SyntaxToken::IdentifierToken(type_annotation)) = (name_ident, type_annotation_ident) else {
-        panic!("Incorrect parameter signature");
-    };
+fn bind_parameter(param_syntax: SyntaxToken) -> BoundNode {
 
-    // TODO: Check if the type exists
-
-    BoundNode::FunctionParameter { name: name, type_annotation: Type::Void }
 }
 
 fn bind_call_expression(scope: &mut BoundScope, identifier: SyntaxToken, args: SyntaxToken) -> BoundNode {
     let (SyntaxToken::IdentifierToken(call_ident), SyntaxToken::FunctionArgumentsToken { .. }) = (identifier, &args) else {
-        panic!("Incorrect call expression signature");
-    };
+        panic!("Incorrect call expression signature")/lioiyu5kghj78klofv mjk gmi,
 
     // have to bind this before we
     // check if the function exists
@@ -307,10 +296,8 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::DeclarationStatement { identifier: _, expression: _ } => Type::Void,
         BoundNode::CodeBlockStatement { members: _ } => Type::Void,
         BoundNode::FunctionDeclarationExpression { identifier: _, params: _, code_block: _ } => Type::Void, // this might be changed later, expressions cannot be of type void...
-        BoundNode::FunctionParametersToken { params: _ } => Type::Void,
-        BoundNode::FunctionParameter { name: _, type_annotation: _ } => Type::Void,
-        BoundNode::CallExpression { identifier: _, args: _, tp } => tp.clone(),
-        BoundNode::FunctionArguments { agrs: _ } => Type::Void
+        BoundNode::FunctionArguments { agrs: _ } => Type::Void,
+        BoundNode::CallExpression { identifier: _, args: _, tp } => tp.clone()
     }
 }
 
@@ -325,8 +312,8 @@ fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
         SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(scope, *identifier, *expression) },
         SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(scope, *tokens) },
         SyntaxToken::FunctionDeclarationExpression { identifier, parameters, code_block } => { bind_function_declaration_expression(scope, *identifier, *parameters, *code_block) },
-        SyntaxToken::FunctionParametersToken { params } => { bind_function_parameters_token(scope, *params) },
-        SyntaxToken::FunctionParameter { name, type_annotation } => { bind_parameter(*name, *type_annotation) },
+        SyntaxToken::FunctionParametersToken { params } => { bind_function_parameters_token(*params) },
+        SyntaxToken::FunctionParameter { name, type_annotation } => {  }
         SyntaxToken::CallExpression { identifier, arguments } => { bind_call_expression(scope, *identifier, *arguments) }
         SyntaxToken::FunctionArgumentsToken { args } => { bind_function_arguments(scope, *args) },
         _ => unreachable!("Unknown token: '{:?}'", token)
