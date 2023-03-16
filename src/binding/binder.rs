@@ -7,14 +7,24 @@ pub struct VariableSymbol {
     tp: Type
 }
 
+pub struct FunctionSymbol {
+    name: String,
+    tp: Type
+}
+
 pub struct BoundScope<'a> {
     variables: Vec<VariableSymbol>,
+    functions: Vec<FunctionSymbol>,
     parent: Option<Box<&'a BoundScope<'a>>>
 }
 
 impl<'a> BoundScope<'a> {
     pub fn declare_variable(&mut self, variable: VariableSymbol) {
         self.variables.push(variable);
+    }
+
+    pub fn declare_function(&mut self, function: FunctionSymbol) {
+        self.functions.push(function);
     }
 
     pub fn get_variable(&self, name: String) -> Option<&VariableSymbol> {
@@ -29,12 +39,24 @@ impl<'a> BoundScope<'a> {
         }
     }
 
+    pub fn get_function(&self, name: String) -> Option<&FunctionSymbol> {
+        let funcs: Vec<&FunctionSymbol> = self.functions.iter().filter(|f| f.name == name).map(|f| f).collect();
+        if funcs.len() > 0 {
+            Some(funcs[0])
+        } else {
+            match &self.parent {
+                Some(p) => p.get_function(name),
+                None => None
+            }
+        }
+    }
+
     pub fn new_root() -> BoundScope<'a> {
-        BoundScope { variables: vec![], parent: None }
+        BoundScope { variables: vec![], functions: vec![], parent: None }
     }
 
     pub fn new(parent: &'a BoundScope<'a>) -> BoundScope<'a> {
-        BoundScope { variables: vec![], parent: Some(Box::new(parent)) }
+        BoundScope { variables: vec![], functions: vec![], parent: Some(Box::new(parent)) }
     }
 }
 
@@ -75,7 +97,8 @@ pub enum BoundNode {
     },
     CallExpression {
         identifier: String,
-        args: Box<BoundNode>
+        args: Box<BoundNode>,
+        tp: Type
     }
 }
 
@@ -194,6 +217,17 @@ fn bind_function_declaration_expression(scope: &mut BoundScope, identifier: Synt
         panic!("Incorrect token signature for function declaration")
     };
 
+    // declare the function
+    let existing_symbol = scope.get_function(func_ident.clone());
+    match existing_symbol {
+        None => {
+            // for now, all functions will be of type void
+            let symbol = FunctionSymbol { name: func_ident.clone(), tp: Type::Void };
+            scope.declare_function(symbol);
+        },
+        Some(_) => panic!("Function with name '{}' already declared in this scope", func_ident)
+    }
+
     let params = bind(params, scope);
     let block = bind(block, scope);
 
@@ -215,8 +249,25 @@ fn bind_call_expression(scope: &mut BoundScope, identifier: SyntaxToken, args: S
         panic!("Incorrect call expression signature")
     };
 
+    // have to bind this before we
+    // check if the function exists
+    // due to mutable borrow rules
     let arguments = bind(args, scope);
-    BoundNode::CallExpression { identifier: call_ident, args: Box::new(arguments) }
+
+    // check if function exists
+    let symbol = scope.get_function(call_ident.clone());
+    if let None = symbol {
+        panic!("Unknown reference to function with name '{}'", call_ident.clone());
+    }
+
+    // TODO: Check if function argument signatures correct
+
+    match symbol {
+        None => panic!("Unknown reference to function with name '{}'", call_ident.clone()),
+        Some(f) => {
+            BoundNode::CallExpression { identifier: call_ident, args: Box::new(arguments), tp: f.tp.clone() }
+        }
+    }
 }
 
 fn get_type(node: &BoundNode) -> Type {
@@ -231,7 +282,7 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::CodeBlockStatement { members: _ } => Type::Void,
         BoundNode::FunctionDeclarationExpression { identifier: _, params: _, code_block: _ } => Type::Void, // this might be changed later, expressions cannot be of type void...
         BoundNode::FunctionArguments { agrs: _ } => Type::Void,
-        BoundNode::CallExpression { identifier: _, args: _ } => Type::Void // TODO: check for function type
+        BoundNode::CallExpression { identifier: _, args: _, tp } => tp.clone()
     }
 }
 

@@ -1,4 +1,9 @@
-print(1 + 2)
+func print() {
 
-var x -> 9
-print(x)
+}
+
+func main() {
+    print(1 + 2)
+    var x -> 9
+    print(x)
+}
