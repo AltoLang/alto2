@@ -43,11 +43,8 @@ pub enum SyntaxToken {
     },
     FunctionDeclarationExpression {
         identifier: Box<SyntaxToken>,
-        parameters: Box<SyntaxToken>,
+        parameters: Box<Vec<SyntaxToken>>,
         code_block: Box<SyntaxToken>
-    },
-    FunctionParametersToken {
-        params: Box<Vec<SyntaxToken>>
     },
     FunctionParameter {
         name: Box<SyntaxToken>,
@@ -180,8 +177,15 @@ fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
         None => unreachable!("Cannot find identifier token when parsing function declaration")
     };
 
-    let parameters = match subtokens.nth(0) {
-        Some(t) => { parse( Pairs::single(t) ) }
+    let mut params: Vec<SyntaxToken> = Vec::new();
+    match subtokens.nth(0) {
+        Some(t) => {
+            let subtokens = t.into_inner();
+            subtokens.for_each(|token| {
+                let bounded_param = parse(Pairs::single(token));
+                params.push(bounded_param)
+            });
+        }
         None => unreachable!("Cannot find parameters when parsing function delcaration")
     };
 
@@ -190,19 +194,7 @@ fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
         None => unreachable!("Cannot find code block when parsing function delcaration")
     };
 
-    SyntaxToken::FunctionDeclarationExpression { identifier: Box::new(identifier), parameters: Box::new(parameters), code_block: Box::new(code_block) }
-}
-
-fn parse_parameters(expr: Pair<Rule>) -> SyntaxToken {
-    let subtokens = expr.into_inner();
-
-    let mut expressions: Vec<SyntaxToken> = Vec::new();
-    subtokens.for_each(|token| {
-        let parsed = parse( Pairs::single(token));
-        expressions.push(parsed);
-    });
-
-    SyntaxToken::FunctionParametersToken { params: Box::new(expressions) }
+    SyntaxToken::FunctionDeclarationExpression { identifier: Box::new(identifier), parameters: Box::new(params), code_block: Box::new(code_block) }
 }
 
 fn parse_function_parameter(param: Pair<Rule>) -> SyntaxToken {
@@ -244,7 +236,6 @@ fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
             Rule::reference_expression => { parse_reference_expression(primary) }
             Rule::var_keyword => { SyntaxToken::KeywordToken(Keyword::VarKeyword) }
             Rule::declaration_statement => { parse_declaration_statement(primary) }
-            Rule::parameter_expression => { parse_parameters(primary) }
             Rule::assignment_expression => { parse_assignment_expression(primary) }
             Rule::call_expression => { parse_call_expression(primary) }
             Rule::function_args => { parse_function_arguments(primary) }

@@ -88,11 +88,8 @@ pub enum BoundNode {
     },
     FunctionDeclarationExpression {
         identifier: String,
-        params: Box<BoundNode>,
+        params: Box<Vec<BoundNode>>,
         code_block: Box<BoundNode>
-    },
-    FunctionParametersToken {
-        params: Box<Vec<BoundNode>>
     },
     FunctionParameter {
         name: String,
@@ -218,8 +215,8 @@ fn bind_code_block_statement(scope: &mut BoundScope, tokens: Vec<SyntaxToken>) -
     BoundNode::CodeBlockStatement { members: Box::new(bounded) }
 }
 
-fn bind_function_declaration_expression(scope: &mut BoundScope, identifier: SyntaxToken, params: SyntaxToken, block: SyntaxToken) -> BoundNode {
-    let (SyntaxToken::IdentifierToken(func_ident), SyntaxToken::FunctionParametersToken { .. }, SyntaxToken::CodeBlockStatement { .. }) = (identifier, &params, &block) else {
+fn bind_function_declaration_expression(scope: &mut BoundScope, identifier: SyntaxToken, params: Vec<SyntaxToken>, block: SyntaxToken) -> BoundNode {
+    let (SyntaxToken::IdentifierToken(func_ident), SyntaxToken::CodeBlockStatement { .. }) = (identifier, &block) else {
         panic!("Incorrect token signature for function declaration")
     };
 
@@ -234,30 +231,27 @@ fn bind_function_declaration_expression(scope: &mut BoundScope, identifier: Synt
         Some(_) => panic!("Function with name '{}' already declared in this scope", func_ident)
     }
 
-    let params = bind(params, scope);
-    let block = bind(block, scope);
-
-    BoundNode::FunctionDeclarationExpression { identifier: func_ident, params: Box::new(params), code_block: Box::new(block) }
-}
-
-fn bind_function_parameters_token(scope: &mut BoundScope, params: Vec<SyntaxToken>) -> BoundNode {
-    let mut bounded: Vec<BoundNode> = Vec::new();
-    for p in params {
-        let b = bind(p, scope);
-        bounded.push(b);
+    // parameters
+    let mut bounded_parameters: Vec<BoundNode> = Vec::new();
+    for param in params {
+        let bounded_param = bind(param, scope);
+        bounded_parameters.push(bounded_param)
     }
 
-    BoundNode::FunctionParametersToken { params: Box::new(bounded) }
+    let block = bind(block, scope);
+
+    BoundNode::FunctionDeclarationExpression { identifier: func_ident, params: Box::new(bounded_parameters), code_block: Box::new(block) }
 }
 
 fn bind_parameter(name_ident: SyntaxToken, type_annotation_ident: SyntaxToken) -> BoundNode {
-    let (SyntaxToken::IdentifierToken(name), SyntaxToken::IdentifierToken(type_annotation)) = (name_ident, type_annotation_ident) else {
+    let (SyntaxToken::IdentifierToken(name), SyntaxToken::IdentifierToken(type_name)) = (name_ident, type_annotation_ident) else {
         panic!("Incorrect parameter signature");
     };
 
     // TODO: Check if the type exists
+    let annotation = get_type_annotation(type_name);
 
-    BoundNode::FunctionParameter { name: name, type_annotation: Type::Void }
+    BoundNode::FunctionParameter { name: name, type_annotation: annotation }
 }
 
 fn bind_call_expression(scope: &mut BoundScope, identifier: SyntaxToken, args: SyntaxToken) -> BoundNode {
@@ -307,10 +301,21 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::DeclarationStatement { identifier: _, expression: _ } => Type::Void,
         BoundNode::CodeBlockStatement { members: _ } => Type::Void,
         BoundNode::FunctionDeclarationExpression { identifier: _, params: _, code_block: _ } => Type::Void, // this might be changed later, expressions cannot be of type void...
-        BoundNode::FunctionParametersToken { params: _ } => Type::Void,
         BoundNode::FunctionParameter { name: _, type_annotation: _ } => Type::Void,
         BoundNode::CallExpression { identifier: _, args: _, tp } => tp.clone(),
         BoundNode::FunctionArguments { agrs: _ } => Type::Void
+    }
+}
+
+fn get_type_annotation(name: String) -> Type {
+    if name == "void" {
+        Type::Void
+    } else if name == "string" {
+        Type::String
+    } else if name == "number" {
+        Type::Number
+    } else {
+        unreachable!("Cannot resolve type '{}'", name)
     }
 }
 
@@ -325,7 +330,6 @@ fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
         SyntaxToken::DeclarationStatement { identifier, expression } => { bind_declaration_statement(scope, *identifier, *expression) },
         SyntaxToken::CodeBlockStatement { tokens } => { bind_code_block_statement(scope, *tokens) },
         SyntaxToken::FunctionDeclarationExpression { identifier, parameters, code_block } => { bind_function_declaration_expression(scope, *identifier, *parameters, *code_block) },
-        SyntaxToken::FunctionParametersToken { params } => { bind_function_parameters_token(scope, *params) },
         SyntaxToken::FunctionParameter { name, type_annotation } => { bind_parameter(*name, *type_annotation) },
         SyntaxToken::CallExpression { identifier, arguments } => { bind_call_expression(scope, *identifier, *arguments) }
         SyntaxToken::FunctionArgumentsToken { args } => { bind_function_arguments(scope, *args) },
