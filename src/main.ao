@@ -1,3 +1,5 @@
 func print(t: string, x: number) {
-
+    var y -> x + 9
 }
+
+print("test")

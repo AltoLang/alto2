@@ -1,13 +1,16 @@
 use core::panic;
 use crate::syntax::parser::{SyntaxToken, Op};
 
+#[derive(Debug, Clone)]
 pub struct VariableSymbol {
     name: String,
     tp: Type
 }
 
+#[derive(Debug, Clone)]
 pub struct FunctionSymbol {
     name: String,
+    params: Vec<VariableSymbol>,
     tp: Type
 }
 
@@ -105,7 +108,7 @@ pub enum BoundNode {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Type {
     Number,
     String,
@@ -203,7 +206,6 @@ fn bind_declaration_statement(scope: &mut BoundScope, identifier: SyntaxToken, e
 }
 
 fn bind_code_block_statement(scope: &mut BoundScope, tokens: Vec<SyntaxToken>) -> BoundNode {
-    // TODO: Create new scope
     let mut child_scope = BoundScope::new(scope);
 
     let mut bounded = Vec::new();
@@ -215,30 +217,63 @@ fn bind_code_block_statement(scope: &mut BoundScope, tokens: Vec<SyntaxToken>) -
     BoundNode::CodeBlockStatement { members: Box::new(bounded) }
 }
 
+fn bind_code_block_use_scope(scope: &mut BoundScope, tokens: Vec<SyntaxToken>) -> BoundNode {
+    // same as bind_code_block_statement
+    // but uses the supplied scope
+    // instead of creating a new one
+
+    let mut bounded = Vec::new();
+    for t in tokens {
+        let bounded_token = bind(t, scope);
+        bounded.push(bounded_token);
+    }
+
+    BoundNode::CodeBlockStatement { members: Box::new(bounded) }
+}
+
 fn bind_function_declaration_expression(scope: &mut BoundScope, identifier: SyntaxToken, params: Vec<SyntaxToken>, block: SyntaxToken) -> BoundNode {
     let (SyntaxToken::IdentifierToken(func_ident), SyntaxToken::CodeBlockStatement { .. }) = (identifier, &block) else {
         panic!("Incorrect token signature for function declaration")
     };
+
+    // parameters
+    let mut param_symbols: Vec<VariableSymbol> = Vec::new();
+    let mut bounded_parameters: Vec<BoundNode> = Vec::new();
+    for param in params {
+        let bounded_param = bind(param, scope);
+
+        let BoundNode::FunctionParameter { ref name, type_annotation } = bounded_param else {
+            unreachable!("Incorrect signature for function parameter");
+        };
+
+        let symbol = VariableSymbol { name: name.clone(), tp: type_annotation };
+        param_symbols.push(symbol);
+        bounded_parameters.push(bounded_param);
+    }
+
+    // bind the code block
+    let SyntaxToken::CodeBlockStatement { tokens: block_tokens } = block else {
+        unreachable!("Cannot find code block when binding function declaration.")
+    };
+
+    // declare parameters as variables in new scope
+    let mut block_scope = BoundScope::new(&scope);
+    for param in &param_symbols {
+        block_scope.declare_variable(param.clone().to_owned());
+    }
+
+    let block = bind_code_block_use_scope(&mut block_scope, *block_tokens);
 
     // declare the function
     let existing_symbol = scope.get_function(func_ident.clone());
     match existing_symbol {
         None => {
             // for now, all functions will be of type void
-            let symbol = FunctionSymbol { name: func_ident.clone(), tp: Type::Void };
+            let symbol = FunctionSymbol { name: func_ident.clone(), tp: Type::Void, params: param_symbols };
             scope.declare_function(symbol);
         },
         Some(_) => panic!("Function with name '{}' already declared in this scope", func_ident)
     }
-
-    // parameters
-    let mut bounded_parameters: Vec<BoundNode> = Vec::new();
-    for param in params {
-        let bounded_param = bind(param, scope);
-        bounded_parameters.push(bounded_param)
-    }
-
-    let block = bind(block, scope);
 
     BoundNode::FunctionDeclarationExpression { identifier: func_ident, params: Box::new(bounded_parameters), code_block: Box::new(block) }
 }
