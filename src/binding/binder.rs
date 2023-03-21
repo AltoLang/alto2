@@ -283,9 +283,7 @@ fn bind_parameter(name_ident: SyntaxToken, type_annotation_ident: SyntaxToken) -
         panic!("Incorrect parameter signature");
     };
 
-    // TODO: Check if the type exists
     let annotation = get_type_annotation(type_name);
-
     BoundNode::FunctionParameter { name: name, type_annotation: annotation }
 }
 
@@ -305,14 +303,31 @@ fn bind_call_expression(scope: &mut BoundScope, identifier: SyntaxToken, args: S
         panic!("Unknown reference to function with name '{}'", call_ident.clone());
     }
 
-    // TODO: Check if function argument signatures correct
+    let symbol = symbol.unwrap();
 
-    match symbol {
-        None => panic!("Unknown reference to function with name '{}'", call_ident.clone()),
-        Some(f) => {
-            BoundNode::CallExpression { identifier: call_ident, args: Box::new(arguments), tp: f.tp.clone() }
+    // TODO: Check if function argument signatures correct
+    let BoundNode::FunctionArguments { agrs: bound_args } = &arguments else {
+        panic!("Incorrect surface of function arguments");
+    };
+
+    if bound_args.len() != symbol.params.len() {
+        panic!("Incorrect number of args");
+    }
+
+    let mut arguments_iter = bound_args.iter();
+    let mut parameters_iter = symbol.params.iter();
+    while let Some(param) = parameters_iter.next() {
+        let Some(arg) = arguments_iter.next() else {
+            panic!("Incorrect number of args");
+        };
+        
+        let arg_tp = get_type(arg);
+        if param.tp != arg_tp {
+            panic!("Argument type does not match parameter type");
         }
     }
+
+    BoundNode::CallExpression { identifier: call_ident, args: Box::new(arguments), tp: symbol.tp.clone() }
 }
 
 fn bind_function_arguments(scope: &mut BoundScope, args: Vec<SyntaxToken>) -> BoundNode {
