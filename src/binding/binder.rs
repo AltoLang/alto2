@@ -369,6 +369,12 @@ fn get_type_annotation(name: String) -> Type {
     }
 }
 
+fn add_builtinfunctions(global_scope: &mut BoundScope) {
+    // declare print function
+    let symbol = FunctionSymbol { name: "print".to_string(), tp: Type::Void, params: vec![VariableSymbol { name: "value".to_string(), tp: Type::String }] };
+    global_scope.declare_function(symbol);
+}
+
 fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
     match token {
         SyntaxToken::Module { tokens } => { bind_module(scope, *tokens) }
@@ -390,5 +396,7 @@ fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
 pub fn bind_global_scope(token: SyntaxToken) -> BoundNode {
     // create global scope and enter binding APIs
     let mut global_scope = BoundScope::new_root();
+    add_builtinfunctions(&mut global_scope);
+    
     bind(token, &mut global_scope)
 }
