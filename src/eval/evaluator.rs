@@ -1,4 +1,5 @@
 use crate::binding::binder::BoundNode;
+use crate::syntax::parser::Op;
 use std::collections::HashMap;
 
 // just an enclosure for values
@@ -82,6 +83,30 @@ impl EvalScope {
     }
 }
 
+fn eval_bin_expression(lhs: BoundNode, op: Op, rhs: BoundNode, scope: &mut EvalScope) -> AnyValue {
+    let lhs = evaluate(lhs, scope);
+    let rhs = evaluate(rhs, scope);
+
+    match op {
+        Op::Addition => {
+            if lhs.string_value.is_some() && rhs.string_value.is_some() {
+                AnyValue::new_string(format!(
+                    "{}{}",
+                    lhs.string_value.unwrap(),
+                    rhs.string_value.unwrap()
+                ))
+            } else if lhs.int_value.is_some() && rhs.int_value.is_some() {
+                AnyValue::new_int(lhs.int_value.unwrap() + rhs.int_value.unwrap())
+            } else {
+                panic!("Invalid types for addition");
+            }
+        },
+        _ => {
+            panic!("Unimplemented");
+        }
+    }
+}
+
 fn eval_builtin_print(args: BoundNode, scope: &mut EvalScope) {
     let BoundNode::FunctionArguments { agrs } = args else {
         panic!("Invalid arguments for print");
@@ -125,11 +150,13 @@ fn eval_module(members: Vec<BoundNode>, scope: &mut EvalScope) -> AnyValue {
 fn evaluate(node: BoundNode, scope: &mut EvalScope) -> AnyValue {
     // walk the tree and evaluate the nodes
     match node {
+        BoundNode::BinExpression { lhs, op, rhs, .. } => eval_bin_expression(*lhs, op, *rhs, scope),
         BoundNode::CallExpression {
             identifier, args, ..
         } => eval_call_expression(identifier.to_owned(), *args, scope),
         BoundNode::Module { members } => eval_module(*members, scope),
         BoundNode::StringLiteral(s) => AnyValue::new_string(s.to_owned()),
+        BoundNode::NumberLiteral(n) => AnyValue::new_int(n),
         _ => {
             panic!("Unimplemented")
         }
