@@ -494,6 +494,23 @@ fn add_builtinfunctions(global_scope: &mut BoundScope) {
             tp: Type::String,
         }],
     };
+
+    global_scope.declare_function(symbol);
+
+    // declare printnum function
+    // this is a temporary fix
+    // until we add functions with
+    // same names but diff params
+
+    let symbol = FunctionSymbol {
+        name: "printnum".to_string(),
+        tp: Type::Void,
+        params: vec![VariableSymbol {
+            name: "value".to_string(),
+            tp: Type::Number,
+        }],
+    };
+
     global_scope.declare_function(symbol);
 }
 

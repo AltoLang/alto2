@@ -103,6 +103,9 @@ fn eval_call_expression(identifier: String, args: BoundNode, scope: &mut EvalSco
     if identifier == "print" {
         eval_builtin_print(args, scope);
         return AnyValue::new_void();
+    } else if identifier == "printnum" {
+        eval_builtin_print(args, scope);
+        return AnyValue::new_void();
     }
 
     // evaluate user functions
