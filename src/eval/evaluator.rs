@@ -8,12 +8,12 @@ struct AnyValue {
     // TODO: Add other types than primitives
     string_value: Option<String>,
     int_value: Option<i32>,
-    is_void: bool
+    is_void: bool,
 }
 
 struct EvalScope {
     parent: Option<Box<EvalScope>>,
-    variables: HashMap<String, AnyValue>
+    variables: HashMap<String, AnyValue>,
 }
 
 impl AnyValue {
@@ -21,7 +21,7 @@ impl AnyValue {
         AnyValue {
             string_value: None,
             int_value: None,
-            is_void: true
+            is_void: true,
         }
     }
 
@@ -29,7 +29,7 @@ impl AnyValue {
         AnyValue {
             string_value: Some(s),
             int_value: None,
-            is_void: false
+            is_void: false,
         }
     }
 
@@ -37,7 +37,7 @@ impl AnyValue {
         AnyValue {
             string_value: None,
             int_value: Some(i),
-            is_void: false
+            is_void: false,
         }
     }
 

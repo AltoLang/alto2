@@ -5,7 +5,10 @@ mod binding;
 mod eval;
 mod syntax;
 
-use std::{ env, fs, io::{self, BufRead} };
+use std::{
+    env, fs,
+    io::{self, BufRead},
+};
 
 fn interactive() {
     for line in io::stdin().lock().lines() {
