@@ -81,9 +81,21 @@ impl EvalScope {
             None
         }
     }
+
+    pub fn change_variable_value(&mut self, name: String, value: AnyValue) {
+        if !self.variables.contains_key(&name) {
+            panic!("Variable {} does not exist", name);
+        }
+
+        *self.variables.get_mut(&name).unwrap() = value;
+    } 
 }
 
-fn eval_declaration_statement(identifier: String, expression: BoundNode, scope: &mut EvalScope) -> AnyValue {
+fn eval_declaration_statement(
+    identifier: String,
+    expression: BoundNode,
+    scope: &mut EvalScope,
+) -> AnyValue {
     let value = evaluate(expression, scope);
     scope.declare_variable(identifier, value);
 
@@ -107,28 +119,28 @@ fn eval_bin_expression(lhs: BoundNode, op: Op, rhs: BoundNode, scope: &mut EvalS
             } else {
                 panic!("Invalid types for addition");
             }
-        },
+        }
         Op::Subtraction => {
             if lhs.int_value.is_some() && rhs.int_value.is_some() {
                 AnyValue::new_int(lhs.int_value.unwrap() - rhs.int_value.unwrap())
             } else {
                 panic!("Invalid types for subtraction");
             }
-        },
+        }
         Op::Multiplication => {
             if lhs.int_value.is_some() && rhs.int_value.is_some() {
                 AnyValue::new_int(lhs.int_value.unwrap() * rhs.int_value.unwrap())
             } else {
                 panic!("Invalid types for multiplication");
             }
-        },
+        }
         Op::Division => {
             if lhs.int_value.is_some() && rhs.int_value.is_some() {
                 AnyValue::new_int(lhs.int_value.unwrap() / rhs.int_value.unwrap())
             } else {
                 panic!("Invalid types for division");
             }
-        },
+        }
         _ => {
             panic!("Unimplemented");
         }
@@ -142,6 +154,13 @@ fn eval_reference_expression(identifier: String, scope: &mut EvalScope) -> AnyVa
     } else {
         panic!("Variable not found");
     }
+}
+
+fn eval_assignment_expression(identifier: String, expression: BoundNode, scope: &mut EvalScope) -> AnyValue {
+    let value = evaluate(expression, scope);
+    scope.change_variable_value(identifier, value.clone());
+
+    value
 }
 
 fn eval_builtin_print(args: BoundNode, scope: &mut EvalScope) {
@@ -187,9 +206,19 @@ fn eval_module(members: Vec<BoundNode>, scope: &mut EvalScope) -> AnyValue {
 fn evaluate(node: BoundNode, scope: &mut EvalScope) -> AnyValue {
     // walk the tree and evaluate the nodes
     match node {
-        BoundNode::DeclarationStatement { identifier, expression } => eval_declaration_statement(identifier, *expression, scope),
+        BoundNode::DeclarationStatement {
+            identifier,
+            expression,
+        } => eval_declaration_statement(identifier, *expression, scope),
         BoundNode::BinExpression { lhs, op, rhs, .. } => eval_bin_expression(*lhs, op, *rhs, scope),
-        BoundNode::ReferenceExpression { identifier, .. } => eval_reference_expression(identifier, scope),
+        BoundNode::ReferenceExpression { identifier, .. } => {
+            eval_reference_expression(identifier, scope)
+        }
+        BoundNode::AssignmentExpression { identifier, expression } => eval_assignment_expression(
+            identifier,
+            *expression,
+            scope,
+        ),
         BoundNode::CallExpression {
             identifier, args, ..
         } => eval_call_expression(identifier.to_owned(), *args, scope),
@@ -197,7 +226,7 @@ fn evaluate(node: BoundNode, scope: &mut EvalScope) -> AnyValue {
         BoundNode::StringLiteral(s) => AnyValue::new_string(s.to_owned()),
         BoundNode::NumberLiteral(n) => AnyValue::new_int(n),
         _ => {
-            panic!("Unimplemented")
+            panic!("Unimplemented {:?}", node)
         }
     }
 }

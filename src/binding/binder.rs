@@ -186,7 +186,10 @@ fn bind_reference_expression(scope: &mut BoundScope, identifier: SyntaxToken) ->
     if let SyntaxToken::IdentifierToken(str) = identifier {
         let symbol = scope.get_variable(str.clone());
         match symbol {
-            Some(s) => BoundNode::ReferenceExpression { identifier: str, tp: s.tp.clone() },
+            Some(s) => BoundNode::ReferenceExpression {
+                identifier: str,
+                tp: s.tp.clone(),
+            },
             None => panic!("Cannot find reference to '{}'", str),
         }
     } else {
@@ -205,21 +208,22 @@ fn bind_assignment_expression(
             panic!("Cannot assign void to '{:?}'", str)
         }
 
-        // TODO: Check if variable exists in scope
+        // Check if variable exists in scope, if doesn't throw error
         let existing_symbol = scope.get_variable(str.clone());
         match existing_symbol {
-            Some(_) => unreachable!(
-                "Variable with name '{}' already exists in the current scope",
-                &str
-            ),
-            None => {
-                // declare the variable
-                let symbol = VariableSymbol {
-                    name: str.clone(),
-                    tp: get_type(&bound_expr),
-                };
-                scope.declare_variable(symbol);
+            Some(symbol) => {
+                // check if types match
+                if symbol.tp != get_type(&bound_expr) {
+                    panic!(
+                        "Cannot assign type '{:?}' to variable of type '{:?}'",
+                        get_type(&bound_expr),
+                        symbol.tp
+                    )
+                }
+
+                // we're good
             }
+            None => panic!("Cannot assign to undeclared variable: '{}'", &str),
         }
 
         BoundNode::AssignmentExpression {
@@ -242,14 +246,21 @@ fn bind_declaration_statement(
             panic!("Cannot assign void to '{:?}'", str)
         }
 
-        // TODO: Check for duplicate variables
-
-        // declare the variable
-        let symbol = VariableSymbol {
-            name: str.clone(),
-            tp: get_type(&bound_expr),
-        };
-        scope.declare_variable(symbol);
+        let existing_symbol = scope.get_variable(str.clone());
+        match existing_symbol {
+            Some(_) => unreachable!(
+                "Variable with name '{}' already exists in the current scope",
+                &str
+            ),
+            None => {
+                // declare the variable
+                let symbol = VariableSymbol {
+                    name: str.clone(),
+                    tp: get_type(&bound_expr),
+                };
+                scope.declare_variable(symbol);
+            }
+        }
 
         BoundNode::DeclarationStatement {
             identifier: str,

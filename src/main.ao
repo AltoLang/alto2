@@ -1,3 +1,5 @@
 var x -> 12 + 14 * 2
 
+x -> 1
+
 printnum(x)
