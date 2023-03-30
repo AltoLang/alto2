@@ -1,1 +1,3 @@
-printnum(6 * 2)
+var x -> 12 + 14 * 2
+
+printnum(x)

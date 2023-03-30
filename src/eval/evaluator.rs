@@ -83,6 +83,13 @@ impl EvalScope {
     }
 }
 
+fn eval_declaration_statement(identifier: String, expression: BoundNode, scope: &mut EvalScope) -> AnyValue {
+    let value = evaluate(expression, scope);
+    scope.declare_variable(identifier, value);
+
+    AnyValue::new_void()
+}
+
 fn eval_bin_expression(lhs: BoundNode, op: Op, rhs: BoundNode, scope: &mut EvalScope) -> AnyValue {
     let lhs = evaluate(lhs, scope);
     let rhs = evaluate(rhs, scope);
@@ -125,6 +132,15 @@ fn eval_bin_expression(lhs: BoundNode, op: Op, rhs: BoundNode, scope: &mut EvalS
         _ => {
             panic!("Unimplemented");
         }
+    }
+}
+
+fn eval_reference_expression(identifier: String, scope: &mut EvalScope) -> AnyValue {
+    let value = scope.get_variable(identifier);
+    if value.is_some() {
+        value.unwrap()
+    } else {
+        panic!("Variable not found");
     }
 }
 
@@ -171,7 +187,9 @@ fn eval_module(members: Vec<BoundNode>, scope: &mut EvalScope) -> AnyValue {
 fn evaluate(node: BoundNode, scope: &mut EvalScope) -> AnyValue {
     // walk the tree and evaluate the nodes
     match node {
+        BoundNode::DeclarationStatement { identifier, expression } => eval_declaration_statement(identifier, *expression, scope),
         BoundNode::BinExpression { lhs, op, rhs, .. } => eval_bin_expression(*lhs, op, *rhs, scope),
+        BoundNode::ReferenceExpression { identifier, .. } => eval_reference_expression(identifier, scope),
         BoundNode::CallExpression {
             identifier, args, ..
         } => eval_call_expression(identifier.to_owned(), *args, scope),

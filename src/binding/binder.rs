@@ -94,6 +94,7 @@ pub enum BoundNode {
         tp: Type,
     },
     ReferenceExpression {
+        identifier: String,
         tp: Type,
     },
     AssignmentExpression {
@@ -185,7 +186,7 @@ fn bind_reference_expression(scope: &mut BoundScope, identifier: SyntaxToken) ->
     if let SyntaxToken::IdentifierToken(str) = identifier {
         let symbol = scope.get_variable(str.clone());
         match symbol {
-            Some(s) => BoundNode::ReferenceExpression { tp: s.tp.clone() },
+            Some(s) => BoundNode::ReferenceExpression { identifier: str, tp: s.tp.clone() },
             None => panic!("Cannot find reference to '{}'", str),
         }
     } else {
@@ -444,7 +445,7 @@ fn get_type(node: &BoundNode) -> Type {
             rhs: _,
             tp,
         } => tp.clone(),
-        BoundNode::ReferenceExpression { tp } => tp.clone(),
+        BoundNode::ReferenceExpression { tp, .. } => tp.clone(),
         BoundNode::AssignmentExpression {
             identifier: _,
             expression,
