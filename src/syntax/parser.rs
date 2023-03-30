@@ -65,7 +65,7 @@ pub enum SyntaxToken {
 #[derive(Debug)]
 pub enum Op {
     Addition,
-    Subtract,
+    Subtraction,
     Division,
     Multiplication,
 }
@@ -278,7 +278,7 @@ fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
         .map_infix(|lhs, op, rhs| {
             let op = match op.as_rule() {
                 Rule::addition => Op::Addition,
-                Rule::subtraction => Op::Subtract,
+                Rule::subtraction => Op::Subtraction,
                 Rule::multiplication => Op::Multiplication,
                 Rule::division => Op::Division,
                 rule => unreachable!("Expected an infix operation, got '{:?}'", rule),

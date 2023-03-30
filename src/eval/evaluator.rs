@@ -101,6 +101,27 @@ fn eval_bin_expression(lhs: BoundNode, op: Op, rhs: BoundNode, scope: &mut EvalS
                 panic!("Invalid types for addition");
             }
         },
+        Op::Subtraction => {
+            if lhs.int_value.is_some() && rhs.int_value.is_some() {
+                AnyValue::new_int(lhs.int_value.unwrap() - rhs.int_value.unwrap())
+            } else {
+                panic!("Invalid types for subtraction");
+            }
+        },
+        Op::Multiplication => {
+            if lhs.int_value.is_some() && rhs.int_value.is_some() {
+                AnyValue::new_int(lhs.int_value.unwrap() * rhs.int_value.unwrap())
+            } else {
+                panic!("Invalid types for multiplication");
+            }
+        },
+        Op::Division => {
+            if lhs.int_value.is_some() && rhs.int_value.is_some() {
+                AnyValue::new_int(lhs.int_value.unwrap() / rhs.int_value.unwrap())
+            } else {
+                panic!("Invalid types for division");
+            }
+        },
         _ => {
             panic!("Unimplemented");
         }
