@@ -1,5 +1,7 @@
-var x -> 12 + 14 * 2
+var x -> 9
 
-x -> 1
+{
+    printnum(x)
+}
 
 printnum(x)

@@ -12,8 +12,8 @@ struct AnyValue {
     is_void: bool,
 }
 
-struct EvalScope {
-    parent: Option<Box<EvalScope>>,
+struct EvalScope<'a> {
+    parent: Option<Box<&'a EvalScope<'a>>>,
     variables: HashMap<String, AnyValue>,
 }
 
@@ -55,10 +55,10 @@ impl AnyValue {
     }
 }
 
-impl EvalScope {
-    fn new(parent_scope: Box<EvalScope>) -> EvalScope {
+impl<'a> EvalScope<'a> {
+    fn new(parent_scope: &'a EvalScope<'a>) -> EvalScope<'a> {
         EvalScope {
-            parent: Some(parent_scope),
+            parent: Some(Box::new(parent_scope)),
             variables: HashMap::new(),
         }
     }
@@ -78,7 +78,11 @@ impl EvalScope {
             let owned = vs[0].1.clone();
             Some(owned)
         } else {
-            None
+            // check in parent
+            match &self.parent {
+                Some(p) => p.get_variable(name),
+                None => None,
+            }
         }
     }
 
@@ -98,6 +102,15 @@ fn eval_declaration_statement(
 ) -> AnyValue {
     let value = evaluate(expression, scope);
     scope.declare_variable(identifier, value);
+
+    AnyValue::new_void()
+}
+
+fn eval_code_block_statement(members: Vec<BoundNode>, scope: &mut EvalScope) -> AnyValue {
+    let mut new_scope = EvalScope::new(scope);
+    for member in members {
+        evaluate(member, &mut new_scope);
+    }
 
     AnyValue::new_void()
 }
@@ -140,9 +153,6 @@ fn eval_bin_expression(lhs: BoundNode, op: Op, rhs: BoundNode, scope: &mut EvalS
             } else {
                 panic!("Invalid types for division");
             }
-        }
-        _ => {
-            panic!("Unimplemented");
         }
     }
 }
@@ -210,6 +220,7 @@ fn evaluate(node: BoundNode, scope: &mut EvalScope) -> AnyValue {
             identifier,
             expression,
         } => eval_declaration_statement(identifier, *expression, scope),
+        BoundNode::CodeBlockStatement { members } => eval_code_block_statement(*members, scope),
         BoundNode::BinExpression { lhs, op, rhs, .. } => eval_bin_expression(*lhs, op, *rhs, scope),
         BoundNode::ReferenceExpression { identifier, .. } => {
             eval_reference_expression(identifier, scope)
