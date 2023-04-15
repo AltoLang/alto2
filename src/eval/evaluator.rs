@@ -1,6 +1,8 @@
 use crate::binding::binder::BoundNode;
 use crate::syntax::parser::Op;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 // just an enclosure for values
 #[derive(Clone)]
@@ -12,8 +14,8 @@ struct AnyValue {
     is_void: bool,
 }
 
-struct EvalScope<'a> {
-    parent: Option<Box<&'a EvalScope<'a>>>,
+struct EvalScope {
+    parent: Option<Rc<RefCell<EvalScope>>>,
     variables: HashMap<String, AnyValue>,
 }
 
@@ -55,10 +57,10 @@ impl AnyValue {
     }
 }
 
-impl<'a> EvalScope<'a> {
-    fn new(parent_scope: &'a EvalScope<'a>) -> EvalScope<'a> {
+impl EvalScope {
+    fn new(parent_scope: Rc<RefCell<EvalScope>>) -> EvalScope {
         EvalScope {
-            parent: Some(Box::new(parent_scope)),
+            parent: Some(parent_scope),
             variables: HashMap::new(),
         }
     }
@@ -80,7 +82,10 @@ impl<'a> EvalScope<'a> {
         } else {
             // check in parent
             match &self.parent {
-                Some(p) => p.get_variable(name),
+                Some(p) => {
+                    let borrow = p.borrow();
+                    borrow.get_variable(name)
+                }
                 None => None,
             }
         }
@@ -88,35 +93,51 @@ impl<'a> EvalScope<'a> {
 
     pub fn change_variable_value(&mut self, name: String, value: AnyValue) {
         if !self.variables.contains_key(&name) {
-            panic!("Variable {} does not exist", name);
+            match &mut self.parent {
+                Some(p) => {
+                    let mut borrow = p.borrow_mut();
+                    borrow.change_variable_value(name.clone(), value)
+                }
+                None => panic!("Variable not found"),
+            }
+
+            return;
         }
 
-        *self.variables.get_mut(&name).unwrap() = value;
-    } 
+        self.variables.remove(&name);
+        self.variables.insert(name, value);
+    }
 }
 
 fn eval_declaration_statement(
     identifier: String,
     expression: BoundNode,
-    scope: &mut EvalScope,
+    scope: Rc<RefCell<EvalScope>>,
 ) -> AnyValue {
-    let value = evaluate(expression, scope);
-    scope.declare_variable(identifier, value);
+    let value = evaluate(expression, Rc::clone(&scope));
+
+    let mut borrow = scope.borrow_mut();
+    borrow.declare_variable(identifier, value);
 
     AnyValue::new_void()
 }
 
-fn eval_code_block_statement(members: Vec<BoundNode>, scope: &mut EvalScope) -> AnyValue {
-    let mut new_scope = EvalScope::new(scope);
+fn eval_code_block_statement(members: Vec<BoundNode>, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
+    let new_scope = Rc::new(RefCell::new(EvalScope::new(scope)));
     for member in members {
-        evaluate(member, &mut new_scope);
+        evaluate(member, Rc::clone(&new_scope));
     }
 
     AnyValue::new_void()
 }
 
-fn eval_bin_expression(lhs: BoundNode, op: Op, rhs: BoundNode, scope: &mut EvalScope) -> AnyValue {
-    let lhs = evaluate(lhs, scope);
+fn eval_bin_expression(
+    lhs: BoundNode,
+    op: Op,
+    rhs: BoundNode,
+    scope: Rc<RefCell<EvalScope>>,
+) -> AnyValue {
+    let lhs = evaluate(lhs, Rc::clone(&scope));
     let rhs = evaluate(rhs, scope);
 
     match op {
@@ -157,8 +178,9 @@ fn eval_bin_expression(lhs: BoundNode, op: Op, rhs: BoundNode, scope: &mut EvalS
     }
 }
 
-fn eval_reference_expression(identifier: String, scope: &mut EvalScope) -> AnyValue {
-    let value = scope.get_variable(identifier);
+fn eval_reference_expression(identifier: String, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
+    let borrow = scope.borrow();
+    let value = borrow.get_variable(identifier);
     if value.is_some() {
         value.unwrap()
     } else {
@@ -166,14 +188,20 @@ fn eval_reference_expression(identifier: String, scope: &mut EvalScope) -> AnyVa
     }
 }
 
-fn eval_assignment_expression(identifier: String, expression: BoundNode, scope: &mut EvalScope) -> AnyValue {
-    let value = evaluate(expression, scope);
-    scope.change_variable_value(identifier, value.clone());
+fn eval_assignment_expression(
+    identifier: String,
+    expression: BoundNode,
+    scope: Rc<RefCell<EvalScope>>,
+) -> AnyValue {
+    let value = evaluate(expression, Rc::clone(&scope));
+
+    let mut borrow = scope.borrow_mut();
+    borrow.change_variable_value(identifier, value.clone());
 
     value
 }
 
-fn eval_builtin_print(args: BoundNode, scope: &mut EvalScope) {
+fn eval_builtin_print(args: BoundNode, scope: Rc<RefCell<EvalScope>>) {
     let BoundNode::FunctionArguments { agrs } = args else {
         panic!("Invalid arguments for print");
     };
@@ -190,7 +218,11 @@ fn eval_builtin_print(args: BoundNode, scope: &mut EvalScope) {
     println!("{}", value.to_string());
 }
 
-fn eval_call_expression(identifier: String, args: BoundNode, scope: &mut EvalScope) -> AnyValue {
+fn eval_call_expression(
+    identifier: String,
+    args: BoundNode,
+    scope: Rc<RefCell<EvalScope>>,
+) -> AnyValue {
     if identifier == "print" {
         eval_builtin_print(args, scope);
         return AnyValue::new_void();
@@ -204,16 +236,16 @@ fn eval_call_expression(identifier: String, args: BoundNode, scope: &mut EvalSco
     panic!("Unimplemented");
 }
 
-fn eval_module(members: Vec<BoundNode>, scope: &mut EvalScope) -> AnyValue {
+fn eval_module(members: Vec<BoundNode>, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
     // eval for the members
     for member in members {
-        evaluate(member, scope);
+        evaluate(member, Rc::clone(&scope));
     }
 
     AnyValue::new_void()
 }
 
-fn evaluate(node: BoundNode, scope: &mut EvalScope) -> AnyValue {
+fn evaluate(node: BoundNode, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
     // walk the tree and evaluate the nodes
     match node {
         BoundNode::DeclarationStatement {
@@ -225,11 +257,10 @@ fn evaluate(node: BoundNode, scope: &mut EvalScope) -> AnyValue {
         BoundNode::ReferenceExpression { identifier, .. } => {
             eval_reference_expression(identifier, scope)
         }
-        BoundNode::AssignmentExpression { identifier, expression } => eval_assignment_expression(
+        BoundNode::AssignmentExpression {
             identifier,
-            *expression,
-            scope,
-        ),
+            expression,
+        } => eval_assignment_expression(identifier, *expression, scope),
         BoundNode::CallExpression {
             identifier, args, ..
         } => eval_call_expression(identifier.to_owned(), *args, scope),
@@ -243,10 +274,10 @@ fn evaluate(node: BoundNode, scope: &mut EvalScope) -> AnyValue {
 }
 
 pub fn eval_root(root: BoundNode) {
-    let mut scope = EvalScope {
+    let scope = EvalScope {
         parent: None,
         variables: HashMap::new(),
     };
 
-    evaluate(root, &mut scope);
+    evaluate(root, Rc::new(RefCell::new(scope)));
 }
