@@ -1,4 +1,4 @@
-use crate::binding::binder::{BoundNode, FunctionSymbol};
+use crate::binding::binder::{BoundNode, FunctionSymbol, VariableSymbol};
 use crate::syntax::parser::Op;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -18,7 +18,7 @@ struct AnyValue {
 struct EvalScope {
     parent: Option<Rc<RefCell<EvalScope>>>,
     variables: HashMap<String, AnyValue>,
-    functions: HashMap<FunctionSymbol, BoundNode>
+    functions: HashMap<FunctionSymbol, BoundNode>,
 }
 
 impl AnyValue {
@@ -64,7 +64,7 @@ impl EvalScope {
         EvalScope {
             parent: Some(parent_scope),
             variables: HashMap::new(),
-            functions: HashMap::new()
+            functions: HashMap::new(),
         }
     }
 
@@ -113,21 +113,23 @@ impl EvalScope {
 }
 
 fn eval_declaration_statement(
-    identifier: String,
+    symbol: VariableSymbol,
     expression: BoundNode,
     scope: Rc<RefCell<EvalScope>>,
 ) -> AnyValue {
     let value = evaluate(expression, Rc::clone(&scope));
 
     let mut borrow = scope.borrow_mut();
-    borrow.declare_variable(identifier, value);
+    borrow.declare_variable(symbol.name, value);
 
     AnyValue::new_void()
 }
 
-fn eval_function_declaration(identifier: String, parameters: Vec<BoundNode>, body: BoundNode, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
-    
-    
+fn eval_function_declaration(
+    symbol: FunctionSymbol,
+    body: BoundNode,
+    scope: Rc<RefCell<EvalScope>>,
+) -> AnyValue {
     AnyValue::new_void()
 }
 
@@ -257,11 +259,12 @@ fn eval_module(members: Vec<BoundNode>, scope: Rc<RefCell<EvalScope>>) -> AnyVal
 fn evaluate(node: BoundNode, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
     // walk the tree and evaluate the nodes
     match node {
-        BoundNode::DeclarationStatement {
-            identifier,
-            expression,
-        } => eval_declaration_statement(identifier, *expression, scope),
-        BoundNode::FunctionDeclarationExpression { identifier, params, code_block } => eval_function_declaration(identifier, *params, *code_block, scope),
+        BoundNode::DeclarationStatement { symbol, expression } => {
+            eval_declaration_statement(symbol, *expression, scope)
+        }
+        BoundNode::FunctionDeclarationExpression { symbol, code_block } => {
+            eval_function_declaration(symbol, *code_block, scope)
+        }
         BoundNode::CodeBlockStatement { members } => eval_code_block_statement(*members, scope),
         BoundNode::BinExpression { lhs, op, rhs, .. } => eval_bin_expression(*lhs, op, *rhs, scope),
         BoundNode::ReferenceExpression { identifier, .. } => {

@@ -3,15 +3,15 @@ use core::panic;
 
 #[derive(Debug, Clone)]
 pub struct VariableSymbol {
-    name: String,
-    tp: Type,
+    pub name: String,
+    pub tp: Type,
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionSymbol {
-    name: String,
-    params: Vec<VariableSymbol>,
-    tp: Type,
+    pub name: String,
+    pub params: Vec<VariableSymbol>,
+    pub tp: Type,
 }
 
 pub struct BoundScope<'a> {
@@ -469,7 +469,7 @@ fn get_type(node: &BoundNode) -> Type {
         } => Type::Void,
         BoundNode::CodeBlockStatement { members: _ } => Type::Void,
         BoundNode::FunctionDeclarationExpression {
-           symbol: _,
+            symbol: _,
             code_block: _,
         } => Type::Void, // this might be changed later, expressions cannot be of type void...
         BoundNode::FunctionParameter {
