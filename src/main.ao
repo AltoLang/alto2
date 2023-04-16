@@ -1,4 +1,5 @@
-func numberz() {
-    var x -> 9
+func numberz(x: number) {
     printnum(x)
 }
+
+numberz(9)

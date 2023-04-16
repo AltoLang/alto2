@@ -2,7 +2,6 @@ use crate::binding::binder::{BoundNode, FunctionSymbol, VariableSymbol};
 use crate::syntax::parser::Op;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::Bound;
 use std::rc::Rc;
 
 // just an enclosure for values
@@ -18,7 +17,13 @@ struct AnyValue {
 struct EvalScope {
     parent: Option<Rc<RefCell<EvalScope>>>,
     variables: HashMap<String, AnyValue>,
-    functions: HashMap<FunctionSymbol, BoundNode>,
+    functions: HashMap<String, EvalFunctionDefinition>,
+}
+
+struct EvalFunctionDefinition {
+    symbol: Rc<RefCell<FunctionSymbol>>,
+    parent_scope: Rc<RefCell<EvalScope>>,
+    body: Rc<RefCell<BoundNode>>,
 }
 
 impl AnyValue {
@@ -72,8 +77,19 @@ impl EvalScope {
         self.variables.insert(name, value);
     }
 
-    pub fn declare_function(&mut self, symbol: FunctionSymbol, body: BoundNode) {
-        self.functions.insert(symbol, body);
+    pub fn declare_function(&mut self, symbol: FunctionSymbol, parent_scope: Rc<RefCell<EvalScope>>, body: BoundNode) {
+        let name = symbol.name.clone();
+        let symbol = Rc::new(RefCell::new(symbol));
+        let scope = Rc::clone(&parent_scope);
+        let body = Rc::new(RefCell::new(body));
+
+        let definition = EvalFunctionDefinition {
+            symbol,
+            parent_scope: scope,
+            body,
+        };
+
+        self.functions.insert(name, definition);
     }
 
     pub fn get_variable(&self, name: String) -> Option<AnyValue> {
@@ -92,6 +108,41 @@ impl EvalScope {
                 Some(p) => {
                     let borrow = p.borrow();
                     borrow.get_variable(name)
+                }
+                None => None,
+            }
+        }
+    }
+
+    pub fn get_function(&self, name: String) -> Option<EvalFunctionDefinition> {
+        let vs: Vec<(&String, &EvalFunctionDefinition)> = self
+            .functions
+            .iter()
+            .filter(|v| v.0.to_owned() == name)
+            .map(|v| v)
+            .collect();
+        if vs.len() > 0 {
+            let owned = vs[0];
+
+            // construct new from old
+            let definition = owned.1;
+            let symbol = Rc::clone(&definition.symbol);
+            let parent_scope = Rc::clone(&definition.parent_scope);
+            let body = Rc::clone(&definition.body);
+
+            let new_definition = EvalFunctionDefinition {
+                symbol,
+                parent_scope,
+                body,
+            };
+
+            Some(new_definition)
+        } else {
+            // check in parent
+            match &self.parent {
+                Some(p) => {
+                    let borrow = p.borrow();
+                    borrow.get_function(name)
                 }
                 None => None,
             }
@@ -135,7 +186,7 @@ fn eval_function_declaration(
     scope: Rc<RefCell<EvalScope>>,
 ) -> AnyValue {
     let mut borrow = scope.borrow_mut();
-    borrow.declare_function(symbol, body);
+    borrow.declare_function(symbol, Rc::clone(&scope), body);
 
     AnyValue::new_void()
 }
@@ -249,9 +300,47 @@ fn eval_call_expression(
         return AnyValue::new_void();
     }
 
-    // evaluate user functions
-    // TODO: Implement this
-    panic!("Unimplemented");
+    let borrowed_scope = scope.borrow();
+    let function = borrowed_scope.get_function(identifier);
+
+    if function.is_none() {
+        panic!("Function not found");
+    }
+
+    let definition = function.unwrap();
+    let symbol = definition.symbol.borrow();
+
+    // all of the following panics should have
+    // been dealt with in the binder, consider
+    // removing them...
+
+    let BoundNode::FunctionArguments { agrs: bound_args } = args else {
+        panic!("Incorrect surface of function arguments in eval");
+    };
+
+    if bound_args.len() != symbol.params.len() {
+        panic!("Incorrect number of arguments in eval");
+    }
+
+    // create a scope for function execution
+    let mut new_scope = EvalScope::new(Rc::clone(&definition.parent_scope));
+
+    // declare all arguments as variables in new scope
+    let mut param_iter = symbol.params.iter();
+    let bound_args = *bound_args;
+    for n in bound_args {
+        let param_symbol = param_iter.next().unwrap();
+        let value = evaluate(n, Rc::clone(&scope));
+
+        // declare the argument as a variable in the new scope
+        new_scope.declare_variable(param_symbol.name.clone(), value);
+    }
+
+    // evaluate the function body
+    let body = definition.body.borrow();
+    let v = evaluate(body, Rc::new(RefCell::new(new_scope)));
+    
+    AnyValue::new_void()
 }
 
 fn eval_module(members: Vec<BoundNode>, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
