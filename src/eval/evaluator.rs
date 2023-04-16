@@ -72,6 +72,10 @@ impl EvalScope {
         self.variables.insert(name, value);
     }
 
+    pub fn declare_function(&mut self, symbol: FunctionSymbol, body: BoundNode) {
+        self.functions.insert(symbol, body);
+    }
+
     pub fn get_variable(&self, name: String) -> Option<AnyValue> {
         let vs: Vec<(&String, &AnyValue)> = self
             .variables
@@ -130,6 +134,9 @@ fn eval_function_declaration(
     body: BoundNode,
     scope: Rc<RefCell<EvalScope>>,
 ) -> AnyValue {
+    let mut borrow = scope.borrow_mut();
+    borrow.declare_function(symbol, body);
+
     AnyValue::new_void()
 }
 

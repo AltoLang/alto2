@@ -1,13 +1,20 @@
 use crate::syntax::parser::{Op, SyntaxToken};
 use core::panic;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum Type {
+    Number,
+    String,
+    Void,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VariableSymbol {
     pub name: String,
     pub tp: Type,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionSymbol {
     pub name: String,
     pub params: Vec<VariableSymbol>,
@@ -124,13 +131,6 @@ pub enum BoundNode {
         args: Box<BoundNode>,
         tp: Type,
     },
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Type {
-    Number,
-    String,
-    Void,
 }
 
 fn bind_module(scope: &mut BoundScope, tokens: Vec<SyntaxToken>) -> BoundNode {

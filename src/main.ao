@@ -2,5 +2,3 @@ func numberz() {
     var x -> 9
     printnum(x)
 }
-
-numberz()
