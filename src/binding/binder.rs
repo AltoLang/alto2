@@ -109,8 +109,7 @@ pub enum BoundNode {
         members: Box<Vec<BoundNode>>,
     },
     FunctionDeclarationExpression {
-        identifier: String,
-        params: Box<Vec<BoundNode>>,
+        symbol: FunctionSymbol,
         code_block: Box<BoundNode>,
     },
     FunctionParameter {
@@ -344,7 +343,7 @@ fn bind_function_declaration_expression(
 
     // declare the function
     let existing_symbol = scope.get_function(func_ident.clone());
-    match existing_symbol {
+    let symbol = match existing_symbol {
         None => {
             // for now, all functions will be of type void
             let symbol = FunctionSymbol {
@@ -352,17 +351,18 @@ fn bind_function_declaration_expression(
                 tp: Type::Void,
                 params: param_symbols,
             };
-            scope.declare_function(symbol);
+
+            scope.declare_function(symbol.clone());
+            symbol
         }
         Some(_) => panic!(
             "Function with name '{}' already declared in this scope",
             func_ident
         ),
-    }
+    };
 
     BoundNode::FunctionDeclarationExpression {
-        identifier: func_ident,
-        params: Box::new(bounded_parameters),
+        symbol: symbol,
         code_block: Box::new(block),
     }
 }
@@ -467,8 +467,7 @@ fn get_type(node: &BoundNode) -> Type {
         } => Type::Void,
         BoundNode::CodeBlockStatement { members: _ } => Type::Void,
         BoundNode::FunctionDeclarationExpression {
-            identifier: _,
-            params: _,
+           symbol: _,
             code_block: _,
         } => Type::Void, // this might be changed later, expressions cannot be of type void...
         BoundNode::FunctionParameter {

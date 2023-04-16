@@ -1,7 +1,8 @@
-use crate::binding::binder::BoundNode;
+use crate::binding::binder::{BoundNode, FunctionSymbol};
 use crate::syntax::parser::Op;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::Bound;
 use std::rc::Rc;
 
 // just an enclosure for values
@@ -17,6 +18,7 @@ struct AnyValue {
 struct EvalScope {
     parent: Option<Rc<RefCell<EvalScope>>>,
     variables: HashMap<String, AnyValue>,
+    functions: HashMap<FunctionSymbol, BoundNode>
 }
 
 impl AnyValue {
@@ -62,6 +64,7 @@ impl EvalScope {
         EvalScope {
             parent: Some(parent_scope),
             variables: HashMap::new(),
+            functions: HashMap::new()
         }
     }
 
@@ -119,6 +122,12 @@ fn eval_declaration_statement(
     let mut borrow = scope.borrow_mut();
     borrow.declare_variable(identifier, value);
 
+    AnyValue::new_void()
+}
+
+fn eval_function_declaration(identifier: String, parameters: Vec<BoundNode>, body: BoundNode, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
+    
+    
     AnyValue::new_void()
 }
 
@@ -252,6 +261,7 @@ fn evaluate(node: BoundNode, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
             identifier,
             expression,
         } => eval_declaration_statement(identifier, *expression, scope),
+        BoundNode::FunctionDeclarationExpression { identifier, params, code_block } => eval_function_declaration(identifier, *params, *code_block, scope),
         BoundNode::CodeBlockStatement { members } => eval_code_block_statement(*members, scope),
         BoundNode::BinExpression { lhs, op, rhs, .. } => eval_bin_expression(*lhs, op, *rhs, scope),
         BoundNode::ReferenceExpression { identifier, .. } => {
@@ -277,6 +287,7 @@ pub fn eval_root(root: BoundNode) {
     let scope = EvalScope {
         parent: None,
         variables: HashMap::new(),
+        functions: HashMap::new(),
     };
 
     evaluate(root, Rc::new(RefCell::new(scope)));
