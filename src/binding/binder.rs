@@ -102,7 +102,7 @@ pub enum BoundNode {
         expression: Box<BoundNode>,
     },
     DeclarationStatement {
-        identifier: String,
+        symbol: VariableSymbol,
         expression: Box<BoundNode>,
     },
     CodeBlockStatement {
@@ -246,7 +246,7 @@ fn bind_declaration_statement(
         }
 
         let existing_symbol = scope.get_variable(str.clone());
-        match existing_symbol {
+        let symbol = match existing_symbol {
             Some(_) => unreachable!(
                 "Variable with name '{}' already exists in the current scope",
                 &str
@@ -257,12 +257,14 @@ fn bind_declaration_statement(
                     name: str.clone(),
                     tp: get_type(&bound_expr),
                 };
-                scope.declare_variable(symbol);
+
+                scope.declare_variable(symbol.clone());
+                symbol
             }
-        }
+        };
 
         BoundNode::DeclarationStatement {
-            identifier: str,
+            symbol: symbol,
             expression: Box::new(bound_expr),
         }
     } else {
@@ -462,7 +464,7 @@ fn get_type(node: &BoundNode) -> Type {
             expression,
         } => get_type(expression),
         BoundNode::DeclarationStatement {
-            identifier: _,
+            symbol: _,
             expression: _,
         } => Type::Void,
         BoundNode::CodeBlockStatement { members: _ } => Type::Void,
