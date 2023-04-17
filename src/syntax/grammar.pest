@@ -8,7 +8,7 @@ module = { (statement)* }
 WHITESPACE = _{ " " | "\t" }
 NEWLINE = _{ "\n" | "\n\r" }
 number_token = @{ ("+" | "-")? ~ ASCII_DIGIT+ }
-letters = _{ ASCII_ALPHA+ }
+letters = _{ (ASCII_ALPHA | "_")+ }
 
 assign_operator = { "->" }
 

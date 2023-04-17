@@ -1,5 +1,5 @@
 func numberz(x: number) {
-    printnum(x)
+    print_num(x)
 }
 
-numberz(9)
+numberz(10)

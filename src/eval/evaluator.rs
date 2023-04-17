@@ -295,7 +295,7 @@ fn eval_call_expression(
     if identifier == "print" {
         eval_builtin_print(args, scope);
         return AnyValue::new_void();
-    } else if identifier == "printnum" {
+    } else if identifier == "print_num" {
         eval_builtin_print(args, scope);
         return AnyValue::new_void();
     }
