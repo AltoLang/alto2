@@ -62,7 +62,7 @@ pub enum SyntaxToken {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Op {
     Addition,
     Subtraction,
