@@ -72,7 +72,7 @@ pub enum Op {
 
 #[derive(Debug)]
 pub enum Keyword {
-    VarKeyword,
+    LetKeyword,
 }
 
 lazy_static::lazy_static! {
@@ -264,7 +264,7 @@ fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
             Rule::expression => parse(primary.into_inner()),
             Rule::expression_statement => parse(primary.into_inner()),
             Rule::reference_expression => parse_reference_expression(primary),
-            Rule::var_keyword => SyntaxToken::KeywordToken(Keyword::VarKeyword),
+            Rule::let_keyword => SyntaxToken::KeywordToken(Keyword::LetKeyword),
             Rule::declaration_statement => parse_declaration_statement(primary),
             Rule::assignment_expression => parse_assignment_expression(primary),
             Rule::call_expression => parse_call_expression(primary),

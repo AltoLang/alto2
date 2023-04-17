@@ -1,5 +1,6 @@
-func numberz(x: number) {
-    print_num(x)
+func p(n: number) {
+    print_num(n)
 }
 
-numberz(10)
+let x -> 10
+p(x)
