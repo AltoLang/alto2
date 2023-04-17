@@ -1,3 +1,4 @@
 {
-    "rust-analyzer.inlayHints.typeHints.enable": false
+    "rust-analyzer.inlayHints.typeHints.enable": false,
+    "python.analysis.typeCheckingMode": "basic"
 }

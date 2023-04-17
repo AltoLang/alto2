@@ -1,5 +1,7 @@
 use crate::syntax::parser::{Op, SyntaxToken};
 use core::panic;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Type {
@@ -95,9 +97,9 @@ pub enum BoundNode {
         members: Box<Vec<BoundNode>>,
     },
     BinExpression {
-        lhs: Box<BoundNode>,
+        lhs: Rc<RefCell<BoundNode>>,
         op: Op,
-        rhs: Box<BoundNode>,
+        rhs: Rc<RefCell<BoundNode>>,
         tp: Type,
     },
     ReferenceExpression {
@@ -106,29 +108,29 @@ pub enum BoundNode {
     },
     AssignmentExpression {
         identifier: String,
-        expression: Box<BoundNode>,
+        expression: Rc<RefCell<BoundNode>>,
     },
     DeclarationStatement {
         symbol: VariableSymbol,
-        expression: Box<BoundNode>,
+        expression: Rc<RefCell<BoundNode>>,
     },
     CodeBlockStatement {
         members: Box<Vec<BoundNode>>,
     },
     FunctionDeclarationExpression {
         symbol: FunctionSymbol,
-        code_block: Box<BoundNode>,
+        code_block: Rc<RefCell<BoundNode>>,
     },
     FunctionParameter {
         name: String,
         type_annotation: Type,
     },
     FunctionArguments {
-        agrs: Box<Vec<BoundNode>>,
+        args: Vec<Rc<RefCell<BoundNode>>>,
     },
     CallExpression {
         identifier: String,
-        args: Box<BoundNode>,
+        args: Rc<RefCell<BoundNode>>,
         tp: Type,
     },
 }
@@ -171,9 +173,9 @@ fn bind_bin_expression(
     }
 
     BoundNode::BinExpression {
-        lhs: Box::new(left),
+        lhs: Rc::new(RefCell::new(left)),
         op: op,
-        rhs: Box::new(right),
+        rhs: Rc::new(RefCell::new(right)),
         tp: left_type,
     }
 }
@@ -227,7 +229,7 @@ fn bind_assignment_expression(
 
         BoundNode::AssignmentExpression {
             identifier: str,
-            expression: Box::new(bound_expr),
+            expression: Rc::new(RefCell::new(bound_expr)),
         }
     } else {
         panic!("Cannot assign to: '{:?}'", identifier)
@@ -265,7 +267,7 @@ fn bind_declaration_statement(
 
         BoundNode::DeclarationStatement {
             symbol: symbol,
-            expression: Box::new(bound_expr),
+            expression: Rc::new(RefCell::new(bound_expr)),
         }
     } else {
         panic!("Cannot assign to: '{:?}'", identifier)
@@ -365,7 +367,7 @@ fn bind_function_declaration_expression(
 
     BoundNode::FunctionDeclarationExpression {
         symbol: symbol,
-        code_block: Box::new(block),
+        code_block: Rc::new(RefCell::new(block)),
     }
 }
 
@@ -407,7 +409,7 @@ fn bind_call_expression(
     let symbol = symbol.unwrap();
 
     // TODO: Check if function argument signatures correct
-    let BoundNode::FunctionArguments { agrs: bound_args } = &arguments else {
+    let BoundNode::FunctionArguments { args: bound_args } = &arguments else {
         panic!("Incorrect surface of function arguments");
     };
 
@@ -422,7 +424,8 @@ fn bind_call_expression(
             panic!("Incorrect number of args");
         };
 
-        let arg_tp = get_type(arg);
+        let arg = arg.borrow();
+        let arg_tp = get_type(&arg);
         if param.tp != arg_tp {
             panic!("Argument type does not match parameter type");
         }
@@ -430,21 +433,19 @@ fn bind_call_expression(
 
     BoundNode::CallExpression {
         identifier: call_ident,
-        args: Box::new(arguments),
+        args: Rc::new(RefCell::new(arguments)),
         tp: symbol.tp.clone(),
     }
 }
 
 fn bind_function_arguments(scope: &mut BoundScope, args: Vec<SyntaxToken>) -> BoundNode {
-    let mut arguments: Vec<BoundNode> = Vec::new();
+    let mut arguments: Vec<Rc<RefCell<BoundNode>>> = Vec::new();
     for arg in args {
         let bounded = bind(arg, scope);
-        arguments.push(bounded);
+        arguments.push(Rc::new(RefCell::new(bounded)));
     }
 
-    BoundNode::FunctionArguments {
-        agrs: Box::new(arguments),
-    }
+    BoundNode::FunctionArguments { args: arguments }
 }
 
 fn get_type(node: &BoundNode) -> Type {
@@ -462,7 +463,10 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::AssignmentExpression {
             identifier: _,
             expression,
-        } => get_type(expression),
+        } => {
+            let borrowed = expression.borrow();
+            get_type(&borrowed)
+        }
         BoundNode::DeclarationStatement {
             symbol: _,
             expression: _,
@@ -481,7 +485,7 @@ fn get_type(node: &BoundNode) -> Type {
             args: _,
             tp,
         } => tp.clone(),
-        BoundNode::FunctionArguments { agrs: _ } => Type::Void,
+        BoundNode::FunctionArguments { args: _ } => Type::Void,
     }
 }
 
