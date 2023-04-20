@@ -337,7 +337,7 @@ fn bind_function_declaration_expression(
         Some(syntax_box) => {
             let syntax = *syntax_box;
             func_type = bind_function_type_annotation(syntax);
-        },
+        }
         None => (),
     };
 
@@ -355,7 +355,11 @@ fn bind_function_declaration_expression(
     let block = bind_code_block_use_scope(&mut block_scope, *block_tokens);
     let block_type = get_type(&block);
     if block_type != func_type {
-        panic!("Mismatched types, expected {:?}, found {:?}", func_type, block_type.clone())
+        panic!(
+            "Mismatched types, expected {:?}, found {:?}",
+            func_type,
+            block_type.clone()
+        )
     }
 
     // declare the function
@@ -497,7 +501,7 @@ fn get_type(node: &BoundNode) -> Type {
         BoundNode::CodeBlockStatement { members } => {
             let last = members.last().unwrap();
             get_type(last)
-        },
+        }
         BoundNode::FunctionDeclarationExpression {
             symbol: _,
             code_block: _,
@@ -580,7 +584,13 @@ fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
             parameters,
             type_annotation,
             code_block,
-        } => bind_function_declaration_expression(scope, *identifier, *parameters, type_annotation, *code_block),
+        } => bind_function_declaration_expression(
+            scope,
+            *identifier,
+            *parameters,
+            type_annotation,
+            *code_block,
+        ),
         SyntaxToken::FunctionParameter {
             name,
             type_annotation,

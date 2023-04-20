@@ -214,7 +214,9 @@ fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
 
     let last_token = match subtokens.nth(0) {
         Some(t) => parse(Pairs::single(t)),
-        None => unreachable!("Cannot find code block or type annotation when parsing function delcaration"),
+        None => unreachable!(
+            "Cannot find code block or type annotation when parsing function delcaration"
+        ),
     };
 
     if let SyntaxToken::FunctionTypeAnnotation { .. } = last_token {
@@ -235,7 +237,7 @@ fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
             parameters: Box::new(params),
             type_annotation: None,
             code_block: Box::new(last_token),
-        } 
+        }
     }
 }
 
@@ -265,7 +267,9 @@ fn parse_function_type_annotation(annotation: Pair<Rule>) -> SyntaxToken {
         None => unreachable!("Cannot find name identifier when parsing function type annotation"),
     };
 
-    SyntaxToken::FunctionTypeAnnotation { identifier: Box::new(name) }
+    SyntaxToken::FunctionTypeAnnotation {
+        identifier: Box::new(name),
+    }
 }
 
 fn parse_module(module: Pair<Rule>) -> SyntaxToken {

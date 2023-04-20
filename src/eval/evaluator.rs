@@ -77,7 +77,12 @@ impl EvalScope {
         self.variables.insert(name, value);
     }
 
-    pub fn declare_function(&mut self, symbol: FunctionSymbol, parent_scope: Rc<RefCell<EvalScope>>, body: BoundNode) {
+    pub fn declare_function(
+        &mut self,
+        symbol: FunctionSymbol,
+        parent_scope: Rc<RefCell<EvalScope>>,
+        body: BoundNode,
+    ) {
         let name = symbol.name.clone();
         let symbol = Rc::new(RefCell::new(symbol));
         let scope = Rc::clone(&parent_scope);
@@ -345,7 +350,7 @@ fn eval_call_expression(
     // evaluate the function body
     let body = definition.body.borrow().clone();
     let value = evaluate(body, Rc::new(RefCell::new(new_scope)));
-    value    
+    value
 }
 
 fn eval_module(members: Vec<BoundNode>, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
