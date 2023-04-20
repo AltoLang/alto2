@@ -494,7 +494,10 @@ fn get_type(node: &BoundNode) -> Type {
             symbol: _,
             expression: _,
         } => Type::Void,
-        BoundNode::CodeBlockStatement { members: _ } => Type::Void,
+        BoundNode::CodeBlockStatement { members } => {
+            let last = members.last().unwrap();
+            get_type(last)
+        },
         BoundNode::FunctionDeclarationExpression {
             symbol: _,
             code_block: _,
