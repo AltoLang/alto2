@@ -40,7 +40,8 @@ atom = _{
     "(" ~ expression ~ ")"
 }
 
-function_definition_expression = { "func" ~ identifier_token ~ parameters_expression ~ code_block_statement }
+function_definition_expression = { "func" ~ identifier_token ~ parameters_expression ~ (function_type_annotation)? ~ code_block_statement }
+function_type_annotation = { assign_operator ~ identifier_token }
 parameters_expression = { "(" ~ ( (func_parameter ~ ",")* ~ func_parameter+ )? ~ ")"}
 func_parameter = { identifier_token ~ ":" ~ identifier_token }
 

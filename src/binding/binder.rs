@@ -306,6 +306,7 @@ fn bind_function_declaration_expression(
     scope: &mut BoundScope,
     identifier: SyntaxToken,
     params: Vec<SyntaxToken>,
+    type_annotation: Option<Box<SyntaxToken>>,
     block: SyntaxToken,
 ) -> BoundNode {
     let (SyntaxToken::IdentifierToken(func_ident), SyntaxToken::CodeBlockStatement { .. }) = (identifier, &block) else {
@@ -330,6 +331,16 @@ fn bind_function_declaration_expression(
         bounded_parameters.push(bounded_param);
     }
 
+    // bind type annotation
+    let mut func_type = Type::Void;
+    match type_annotation {
+        Some(syntax_box) => {
+            let syntax = *syntax_box;
+            func_type = bind_function_type_annotation(syntax);
+        },
+        None => (),
+    };
+
     // bind the code block
     let SyntaxToken::CodeBlockStatement { tokens: block_tokens } = block else {
         unreachable!("Cannot find code block when binding function declaration.")
@@ -342,6 +353,10 @@ fn bind_function_declaration_expression(
     }
 
     let block = bind_code_block_use_scope(&mut block_scope, *block_tokens);
+    let block_type = get_type(&block);
+    if block_type != func_type {
+        panic!("Mismatched types, expected {:?}, found {:?}", func_type, block_type.clone())
+    }
 
     // declare the function
     let existing_symbol = scope.get_function(func_ident.clone());
@@ -350,7 +365,7 @@ fn bind_function_declaration_expression(
             // for now, all functions will be of type void
             let symbol = FunctionSymbol {
                 name: func_ident.clone(),
-                tp: Type::Void,
+                tp: func_type,
                 params: param_symbols,
             };
 
@@ -366,6 +381,18 @@ fn bind_function_declaration_expression(
     BoundNode::FunctionDeclarationExpression {
         symbol: symbol,
         code_block: Box::new(block),
+    }
+}
+
+fn bind_function_type_annotation(annotation: SyntaxToken) -> Type {
+    if let SyntaxToken::FunctionTypeAnnotation { identifier } = annotation {
+        if let SyntaxToken::IdentifierToken(str) = *identifier {
+            get_type_annotation(str)
+        } else {
+            panic!("Type annotation must contain identifier")
+        }
+    } else {
+        panic!("Incorrect token signature for function type annotation")
     }
 }
 
@@ -548,8 +575,9 @@ fn bind(token: SyntaxToken, scope: &mut BoundScope) -> BoundNode {
         SyntaxToken::FunctionDeclarationExpression {
             identifier,
             parameters,
+            type_annotation,
             code_block,
-        } => bind_function_declaration_expression(scope, *identifier, *parameters, *code_block),
+        } => bind_function_declaration_expression(scope, *identifier, *parameters, type_annotation, *code_block),
         SyntaxToken::FunctionParameter {
             name,
             type_annotation,

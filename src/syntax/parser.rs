@@ -48,11 +48,15 @@ pub enum SyntaxToken {
     FunctionDeclarationExpression {
         identifier: Box<SyntaxToken>,
         parameters: Box<Vec<SyntaxToken>>,
+        type_annotation: Option<Box<SyntaxToken>>,
         code_block: Box<SyntaxToken>,
     },
     FunctionParameter {
         name: Box<SyntaxToken>,
         type_annotation: Box<SyntaxToken>,
+    },
+    FunctionTypeAnnotation {
+        identifier: Box<SyntaxToken>,
     },
     CodeBlockStatement {
         tokens: Box<Vec<SyntaxToken>>,
@@ -208,15 +212,30 @@ fn parse_function_declaration(expr: Pair<Rule>) -> SyntaxToken {
         None => unreachable!("Cannot find parameters when parsing function delcaration"),
     };
 
-    let code_block = match subtokens.nth(0) {
+    let last_token = match subtokens.nth(0) {
         Some(t) => parse(Pairs::single(t)),
-        None => unreachable!("Cannot find code block when parsing function delcaration"),
+        None => unreachable!("Cannot find code block or type annotation when parsing function delcaration"),
     };
 
-    SyntaxToken::FunctionDeclarationExpression {
-        identifier: Box::new(identifier),
-        parameters: Box::new(params),
-        code_block: Box::new(code_block),
+    if let SyntaxToken::FunctionTypeAnnotation { .. } = last_token {
+        let code_block = match subtokens.nth(0) {
+            Some(t) => parse(Pairs::single(t)),
+            None => unreachable!("Cannot find code block when parsing function delcaration"),
+        };
+
+        SyntaxToken::FunctionDeclarationExpression {
+            identifier: Box::new(identifier),
+            parameters: Box::new(params),
+            type_annotation: Some(Box::new(last_token)),
+            code_block: Box::new(code_block),
+        }
+    } else {
+        SyntaxToken::FunctionDeclarationExpression {
+            identifier: Box::new(identifier),
+            parameters: Box::new(params),
+            type_annotation: None,
+            code_block: Box::new(last_token),
+        } 
     }
 }
 
@@ -237,6 +256,16 @@ fn parse_function_parameter(param: Pair<Rule>) -> SyntaxToken {
         name: Box::new(name),
         type_annotation: Box::new(type_ann),
     }
+}
+
+fn parse_function_type_annotation(annotation: Pair<Rule>) -> SyntaxToken {
+    let mut subtokens = annotation.into_inner();
+    let name = match subtokens.nth(1) {
+        Some(t) => parse(Pairs::single(t)),
+        None => unreachable!("Cannot find name identifier when parsing function type annotation"),
+    };
+
+    SyntaxToken::FunctionTypeAnnotation { identifier: Box::new(name) }
 }
 
 fn parse_module(module: Pair<Rule>) -> SyntaxToken {
@@ -271,6 +300,7 @@ fn parse(pairs: Pairs<Rule>) -> SyntaxToken {
             Rule::function_args => parse_function_arguments(primary),
             Rule::function_definition_expression => parse_function_declaration(primary),
             Rule::func_parameter => parse_function_parameter(primary),
+            Rule::function_type_annotation => parse_function_type_annotation(primary),
             Rule::code_block_statement => parse_code_block_statement(primary),
             Rule::module => parse_module(primary),
             rule => unreachable!("Token::parse expects an atom, found {:?}", rule),
@@ -297,6 +327,7 @@ pub fn parse_contents(text: String) -> Result<SyntaxToken, ParseError> {
     let t = text.clone();
     match AltoParser::parse(Rule::module, t.as_str()) {
         Ok(mut pairs) => {
+            dbg!(&pairs);
             let token = parse(Pairs::single(pairs.next().unwrap()));
             return Ok(token);
         }
