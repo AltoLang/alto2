@@ -459,6 +459,8 @@ fn bind_call_expression(
         }
     }
 
+    dbg!(&symbol.tp);
+
     BoundNode::CallExpression {
         identifier: call_ident,
         args: Box::new(arguments),

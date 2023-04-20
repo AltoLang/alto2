@@ -331,7 +331,6 @@ pub fn parse_contents(text: String) -> Result<SyntaxToken, ParseError> {
     let t = text.clone();
     match AltoParser::parse(Rule::module, t.as_str()) {
         Ok(mut pairs) => {
-            dbg!(&pairs);
             let token = parse(Pairs::single(pairs.next().unwrap()));
             return Ok(token);
         }

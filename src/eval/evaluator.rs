@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 // just an enclosure for values
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct AnyValue {
     // primitive values, other types will be added later
     // TODO: Add other types than primitives
@@ -198,11 +198,20 @@ fn eval_function_declaration(
 
 fn eval_code_block_statement(members: Vec<BoundNode>, scope: Rc<RefCell<EvalScope>>) -> AnyValue {
     let new_scope = Rc::new(RefCell::new(EvalScope::new(scope)));
+    let mut last_value = AnyValue::new_void();
+
+    let mut index = 0;
+    let length = members.len();
     for member in members {
-        evaluate(member, Rc::clone(&new_scope));
+        let value = evaluate(member, Rc::clone(&new_scope));
+        if index == length - 1 {
+            last_value = value;
+        }
+
+        index += 1;
     }
 
-    AnyValue::new_void()
+    last_value
 }
 
 fn eval_bin_expression(
@@ -349,7 +358,9 @@ fn eval_call_expression(
 
     // evaluate the function body
     let body = definition.body.borrow().clone();
+    dbg!(&body);
     let value = evaluate(body, Rc::new(RefCell::new(new_scope)));
+    dbg!(&value);
     value
 }
 
